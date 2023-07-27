@@ -469,6 +469,10 @@ inline pi_result ur2piDeviceInfoValue(ur_device_info_t ParamName,
           *pValuePI = pValueUR->value.affinity_domain;
           break;
         }
+        case UR_DEVICE_PARTITION_BY_CSLICE: {
+          *pValuePI = 0;
+          break;
+        }
         default:
           die("UR_DEVICE_INFO_PARTITION_TYPE query returned unsupported type");
         }
