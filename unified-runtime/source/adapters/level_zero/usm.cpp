@@ -84,26 +84,25 @@ EnqueuedPool::insert(void *Ptr, size_t Size, ur_event_handle_t Event,
   uintptr_t Address = (uintptr_t)Ptr;
   size_t Alignment = Address & (~Address + 1);
   Event->RefCount.increment();
-  EventsCleanup.push_back(Event);
 
   Freelist.emplace(Allocation{Ptr, Size, Event, Queue, Alignment});
 }
 
-void
+bool
 EnqueuedPool::cleanup() {
-  for (auto It : EventsCleanup) {
-    urEventReleaseInternal(It);
-  }
-
-  EventsCleanup.clear();
+  auto FreedAllocations = !Freelist.empty();
   for (auto It : Freelist) {
     auto hPool = umfPoolByPtr(It.Ptr);
     assert(hPool != nullptr);
 
     auto umfRet = umfPoolFree(hPool, It.Ptr);
     assert(umfRet == UMF_RESULT_SUCCESS);
+
+    urEventReleaseInternal(It.Event);
   }
   Freelist.clear();
+
+  return FreedAllocations;
 }
 
 usm::DisjointPoolAllConfigs DisjointPoolConfigInstance =
@@ -685,8 +684,8 @@ static ur_result_t enqueueUSMAllocHelper(
 
   auto Device = (Type == UR_USM_TYPE_HOST) ? nullptr : Queue->Device;
 
-
   std::vector<ur_event_handle_t> ExtEventWaitList;
+  ur_event_handle_t OriginAllocEvent = nullptr;
   auto AsyncAlloc =
       USMPool->allocateEnqueued(Queue, Device, nullptr, Type, Size);
   if (!AsyncAlloc) {
@@ -697,11 +696,13 @@ static ur_result_t enqueueUSMAllocHelper(
     }
   } else {
     *RetMem = std::get<0>(*AsyncAlloc);
-    auto event = std::get<1>(*AsyncAlloc);
-    for (size_t i = 0; i < NumEventsInWaitList; ++i) {
-      ExtEventWaitList.push_back(EventWaitList[i]);
+    OriginAllocEvent = std::get<1>(*AsyncAlloc);
+    if (OriginAllocEvent) {
+      for (size_t I = 0; I < NumEventsInWaitList; ++I) {
+        ExtEventWaitList.push_back(EventWaitList[I]);
+      }
+      ExtEventWaitList.push_back(OriginAllocEvent);
     }
-    ExtEventWaitList.push_back(event);
   }
 
   if (!ExtEventWaitList.empty()) {
@@ -745,6 +746,7 @@ static ur_result_t enqueueUSMAllocHelper(
                                        IsInternal, false));
   ZeEvent = (*Event)->ZeEvent;
   (*Event)->WaitList = TmpWaitList;
+  (*Event)->OriginAllocEvent = OriginAllocEvent;
 
   // Signal that USM allocation event was finished
   ZE2UR_CALL(zeCommandListAppendSignalEvent, (CommandList->first, ZeEvent));
@@ -1360,7 +1362,13 @@ ur_usm_pool_handle_t_::allocateEnqueued(ur_queue_handle_t Queue,
     return std::nullopt;
   }
 
-  return std::make_pair(Allocation->Ptr, Allocation->Event);
+  auto *Event = Allocation->Event;
+  if (Event->Completed || (Allocation->Queue == Queue && Queue->isInOrderQueue())) {
+    urEventReleaseInternal(Event);
+    Event = nullptr;
+  }
+
+  return std::make_pair(Allocation->Ptr, Event);
 }
 
 ur_result_t ur_usm_pool_handle_t_::allocate(ur_context_handle_t Context,
@@ -1419,11 +1427,17 @@ ur_result_t ur_usm_pool_handle_t_::allocate(ur_context_handle_t Context,
 
   *RetMem = umfPoolAlignedMalloc(umfPool, Size, Alignment);
   if (*RetMem == nullptr) {
-    auto umfRet = umfPoolGetLastAllocationError(umfPool);
-    logger::error(
-        "enqueueUSMAllocHelper: allocation from the UMF pool {} failed",
-        umfPool);
-    return umf::umf2urResult(umfRet);
+    if (Pool->AsyncPool.cleanup()) { // true means that objects were deallocated
+      // let's try again
+      *RetMem = umfPoolAlignedMalloc(umfPool, Size, Alignment);
+    }
+    if (*RetMem == nullptr) {
+        auto umfRet = umfPoolGetLastAllocationError(umfPool);
+        logger::error(
+            "enqueueUSMAllocHelper: allocation from the UMF pool {} failed",
+            umfPool);
+        return umf::umf2urResult(umfRet);
+    }
   }
 
   if (IndirectAccessTrackingEnabled) {
