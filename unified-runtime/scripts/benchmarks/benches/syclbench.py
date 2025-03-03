@@ -8,7 +8,7 @@ import csv
 import io
 from utils.utils import run, git_clone, create_build_path
 from .base import Benchmark, Suite
-from .result import Result
+from utils.result import Result
 from options import options
 
 
@@ -161,7 +161,7 @@ class SyclBenchmark(Benchmark):
         return
 
     def name(self):
-        return self.test
+        return f"{self.bench.name()} {self.test}"
 
 
 # multi benchmarks
