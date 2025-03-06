@@ -35,7 +35,13 @@ def generate_html(benchmark_runs: list, compare_names: list[str]):
     else:
         data_path = os.path.join(html_path, "data.json")
         with open(data_path, "w") as f:
-            json.dump([run.to_json() for run in benchmark_runs], f, indent=4)
+            f.write("[\n")
+            for i, run in enumerate(benchmark_runs):
+                if i > 0:
+                    f.write(",\n")
+                f.write(run.to_json())
+            f.write("\n];\n")
+
         print(
             f"Upload {data_path} to a location set in config.js remoteDataUrl argument."
         )

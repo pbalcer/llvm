@@ -1,2 +1,2 @@
-// remoteDataUrl: 'https://example.com/data.json'
-// defaultCompareNames = ['baseline'];
+//remoteDataUrl = 'https://example.com/data.json';
+//defaultCompareNames = ['baseline'];

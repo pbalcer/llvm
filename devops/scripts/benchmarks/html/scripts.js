@@ -536,7 +536,7 @@ function loadData() {
     const loadingIndicator = document.getElementById('loading-indicator');
     loadingIndicator.style.display = 'block'; // Show loading indicator
 
-    if (typeof variable !== 'undefined' && remoteDataUrl !== '') {
+    if (typeof remoteDataUrl !== 'undefined' && remoteDataUrl !== '') {
         // Fetch data from remote URL
         fetch(remoteDataUrl)
             .then(response => response.json())
