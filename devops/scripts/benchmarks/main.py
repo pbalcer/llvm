@@ -182,14 +182,13 @@ def main(directory, additional_env_vars, save_name, compare_names, filter):
                 print(f"{type(s).__name__} setup complete.")
                 benchmarks += suite_benchmarks
 
-    for b in benchmarks:
-        print(b.name())
-
     for benchmark in benchmarks:
         try:
-            print(f"Setting up {benchmark.name()}... ")
+            if options.verbose:
+                print(f"Setting up {benchmark.name()}... ")
             benchmark.setup()
-            print(f"{benchmark.name()} setup complete.")
+            if options.verbose:
+                print(f"{benchmark.name()} setup complete.")
 
         except Exception as e:
             if options.exit_on_failure:
@@ -278,8 +277,6 @@ def main(directory, additional_env_vars, save_name, compare_names, filter):
 
     if options.output_html:
         generate_html(history.runs, compare_names)
-
-        print(f"See {os.getcwd()}/html/index.html for the results.")
 
 
 def validate_and_parse_env_args(env_args):
@@ -394,7 +391,11 @@ if __name__ == "__main__":
         help="Specify whether markdown output should fit the content size limit for request validation",
     )
     parser.add_argument(
-        "--output-html", help="Create HTML output", action="store_true", default=False
+        "--output-html",
+        help="Create HTML output. Local output is for direct local viewing of the html file, remote is for server deployment.",
+        nargs="?",
+        const=options.output_html,
+        choices=["local", "remote"],
     )
     parser.add_argument(
         "--dry-run",
