@@ -45,7 +45,7 @@ jobs:
         build_type: [Release]
         compiler: [{c: clang, cxx: clang++}]
 
-    runs-on: "PVC_PERF"
+    runs-on: "ubuntu-latest"
 
     steps:
     - name: Add comment to PR
@@ -80,66 +80,23 @@ jobs:
         git checkout origin/pr/${{ inputs.pr_no }}/merge
         git rev-parse origin/pr/${{ inputs.pr_no }}/merge
 
+    - name: install apt packages
+      run: sudo apt install python3 pip
+
     - name: Install pip packages
       run: |
-        pip install --force-reinstall -r ${{github.workspace}}/sycl-repo/devops/scripts/benchmarks/requirements.txt
+        pip install -r ${{github.workspace}}/sycl-repo/devops/scripts/benchmarks/requirements.txt
 
-    - name: Configure SYCL
-      run: >
-        python3 sycl-repo/buildbot/configure.py
-        -t ${{matrix.build_type}}
-        -o ${{github.workspace}}/sycl_build
-        --cmake-gen "Ninja"
-        --cmake-opt="-DLLVM_INSTALL_UTILS=ON"
-        --cmake-opt="-DSYCL_PI_TESTS=OFF"
-        --cmake-opt=-DCMAKE_C_COMPILER_LAUNCHER=ccache
-        --cmake-opt=-DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-        ${{matrix.adapter.sycl_config}}
-
-    - name: Build SYCL
-      run: cmake --build ${{github.workspace}}/sycl_build -j $(nproc)
-
-    # We need a complete installed UR for compute-benchmarks.
-    - name: Configure UR
-      run: >
-        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}}
-        -S${{github.workspace}}/sycl-repo/unified-runtime
-        -B${{github.workspace}}/ur_build
-        -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/ur_install
-        -DUR_BUILD_TESTS=OFF
-        -DUR_BUILD_ADAPTER_L0=ON
-        -DUR_BUILD_ADAPTER_L0_V2=ON
-        -DUMF_DISABLE_HWLOC=ON
-
-    - name: Build UR
-      run: cmake --build ${{github.workspace}}/ur_build -j $(nproc)
-
-    - name: Install UR
-      run: cmake --install ${{github.workspace}}/ur_build
-
-    - name: Compute core range
+    - name: Fetch results directory from branch
       run: |
-        # Compute the core range for the first NUMA node; second node is for UMF jobs.
-        # Skip the first 4 cores - the kernel is likely to schedule more work on these.
-        CORES="$(lscpu | awk '
-          /NUMA node0 CPU|On-line CPU/ {line=$0}
-          END {
-            split(line, a, " ")
-            split(a[4], b, ",")
-            sub(/^0/, "4", b[1])
-            print b[1]
-          }')"
-        echo "Selected core: $CORES"
-        echo "CORES=$CORES" >> $GITHUB_ENV
-
-        ZE_AFFINITY_MASK=0
-        echo "ZE_AFFINITY_MASK=$ZE_AFFINITY_MASK" >> $GITHUB_ENV
+        git fetch origin benchmark-results
+        git checkout origin/benchmark-results -- ~/llvm_bench_workdir/results
 
     - name: Run benchmarks
       working-directory: ${{ github.workspace }}
       id: benchmarks
       run: >
-        taskset -c "${{ env.CORES }}" ${{ github.workspace }}/sycl-repo/devops/scripts/benchmarks/main.py
+        ${{ github.workspace }}/sycl-repo/devops/scripts/benchmarks/main.py
         ~/llvm_bench_workdir
         --sycl ${{ github.workspace }}/sycl_build
         --ur ${{ github.workspace }}/ur_install
@@ -147,7 +104,8 @@ jobs:
         --compare baseline
         --compute-runtime ${{ inputs.compute_runtime_commit }}
         --build-igc
-        ${{ inputs.upload_report && '--output-html' || '' }}
+        --output-html remote
+        --preset Test
         ${{ inputs.pr_no != 0 && '--output-markdown' || '' }}
         ${{ inputs.bench_script_params }}
 
@@ -182,17 +140,12 @@ jobs:
             body: body
           })
 
-    - name: Rename benchmark results file
-      if: ${{ always() && inputs.upload_report }}
-      run: mv benchmark_results.html benchmark_results_${{ inputs.pr_no }}.html
-
-    - name: Upload HTML report
-      if: ${{ always() && inputs.upload_report }}
-      uses: actions/cache/save@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-      with:
-        path: benchmark_results_${{ inputs.pr_no }}.html
-        key: benchmark-results-${{ inputs.pr_no }}-${{ matrix.adapter.str_name }}-${{ github.run_id }}
-
-    - name: Get information about platform
-      if: ${{ always() }}
-      run: ${{github.workspace}}/sycl-repo/devops/scripts/get_system_info.sh
+    - name: Commit data.json and results directory
+      run: |
+        git config --global user.name "GitHub Actions Bot"
+        git config --global user.email "actions@github.com"
+        git checkout -b benchmark-results
+        cp ${{ github.workspace }}/html/data.json ~/llvm_bench_workdir/results/
+        git add ~/llvm_bench_workdir/results
+        git commit -m "Add benchmark results and data.json"
+        git push origin benchmark-results
