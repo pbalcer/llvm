@@ -87,9 +87,6 @@ jobs:
       run: |
         pip install -r ${{github.workspace}}/sycl-repo/devops/scripts/benchmarks/requirements.txt
 
-    - name: Create llvm_bench_workdir Directory
-      run: mkdir -p ~/llvm_bench_workdir/results
-
     - name: Checkout results branch
       uses: actions/checkout@v4
       with:
