@@ -110,6 +110,7 @@ jobs:
         --build-igc
         --output-html remote
         --preset Test
+        --results-dir ${{ github.workspace }}/results-repo
         ${{ inputs.pr_no != 0 && '--output-markdown' || '' }}
         ${{ inputs.bench_script_params }}
 
@@ -149,7 +150,7 @@ jobs:
       run: |
         git config --global user.name "GitHub Actions Bot"
         git config --global user.email "actions@github.com"
-        cp ${{ github.workspace }}/html/data.json results/
-        git add results/data.json
+        cp ${{ github.workspace }}/html/data.json .
+        git add results/data.json results/
         git commit -m "Add benchmark results and data.json"
         git push origin benchmark-results
