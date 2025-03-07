@@ -143,7 +143,6 @@ jobs:
     - name: Commit data.json and results directory
       working-directory: results-repo
       run: |
-        echo "Configuring Git user"
         git config --global user.name "GitHub Actions Bot"
         git config --global user.email "actions@github.com"
 
@@ -158,8 +157,7 @@ jobs:
 
           results_file=$(git diff HEAD~1 --name-only -- results/ | head -n 1)
 
-          # test fail
-          if git push origin-fail benchmark-results; then
+          if git push origin benchmark-results; then
             echo "Push succeeded"
             break
           fi
@@ -172,9 +170,11 @@ jobs:
             git reset --hard origin/benchmark-results
             git pull origin benchmark-results
 
-            echo "Determining the new highest number for the results file"
+            # a new results file was probably committed. We need to rename
+            # this run's json result file to have a have the highest free index.
+            # For example, if our file is 123_baseline.json, and 123_foo.json was
+            # just added, we need the new name to be 124_baseline.json.
             highest_number=$(ls results/ | grep -o '^[0-9]\+' | sort -n | tail -n 1)
-            echo "Highest number: $highest_number"
             new_number=$((highest_number + 1))
             new_file="results/${new_number}_$(basename "$results_file" | cut -d'_' -f2)"
             echo "New file name: $new_file"
