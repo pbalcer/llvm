@@ -103,8 +103,6 @@ jobs:
         --ur ${{ github.workspace }}/ur_install
         --adapter ${{ matrix.adapter.str_name }}
         --compare baseline
-        --compute-runtime ${{ inputs.compute_runtime_commit }}
-        --build-igc
         --output-html remote
         --preset Test
         --results-dir ${{ github.workspace }}/results-repo
