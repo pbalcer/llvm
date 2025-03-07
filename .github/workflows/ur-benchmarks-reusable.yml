@@ -160,7 +160,7 @@ jobs:
           git add data.json results/
           git commit -m "Add benchmark results and data.json" || true
 
-          results_file=$(git diff --cached --name-only --diff-filter=A -- results/ | head -n 1)
+          results_file=$(git diff HEAD~1 --name-only -- results/ | head -n 1)
           if [ -z "$results_file" ]; then
             echo "No new result files were added."
           else
