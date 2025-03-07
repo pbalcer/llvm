@@ -145,7 +145,7 @@ jobs:
       run: |
         git config --global user.name "GitHub Actions Bot"
         git config --global user.email "actions@github.com"
-        cp ${{ github.workspace }}/html/data.json .
-        git add results/data.json results/
+        cp ${{ github.workspace }}/sycl-repo/devops/scripts/benchmarks/html/data.json .
+        git add data.json results/
         git commit -m "Add benchmark results and data.json"
         git push origin benchmark-results
