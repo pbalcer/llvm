@@ -140,12 +140,67 @@ jobs:
             body: body
           })
 
-    - name: Commit data.json and results directory
+    - name: Commit data.json and results directory with retries
       working-directory: results-repo
       run: |
+        echo "Configuring Git user"
         git config --global user.name "GitHub Actions Bot"
         git config --global user.email "actions@github.com"
+
+        echo "Copying data.json file"
         cp ${{ github.workspace }}/sycl-repo/devops/scripts/benchmarks/html/data.json .
-        git add data.json results/
-        git commit -m "Add benchmark results and data.json"
-        git push origin benchmark-results
+
+        # Set a variable to simulate failure
+        FORCE_FAILURE=true
+
+        for attempt in {1..5}; do
+          echo "Attempt $attempt to push changes"
+
+          echo "Adding changes to git"
+          git add data.json results/
+          git commit -m "Add benchmark results and data.json" || true
+
+          # Conditionally force failure
+          if [ "$FORCE_FAILURE" = true ]; then
+            echo "Forcing push failure"
+            false
+          else
+            echo "Attempting to push changes"
+            if git push origin benchmark-results; then
+              echo "Push succeeded"
+              break
+            fi
+          fi
+
+          # Reset the failure condition after the first attempt
+          FORCE_FAILURE=false
+
+          echo "Push failed, retrying..."
+
+          echo "Finding the latest results file"
+          latest_file=$(ls results/ | sort -V | tail -n 1)
+          echo "Latest file: $latest_file"
+
+          echo "Moving the latest results file to a temporary location"
+          mv results/$latest_file ${{ github.workspace }}/temp_$latest_file
+
+          echo "Resetting local branch to match remote"
+          git reset --hard origin/benchmark-results
+          echo "Pulling latest changes from remote"
+          git pull origin benchmark-results
+
+          echo "Determining the new highest number for the results file"
+          highest_number=$(ls results/ | sort -V | tail -n 1 | cut -d'_' -f1)
+          echo "Highest number: $highest_number"
+          new_number=$((highest_number + 1))
+          new_file="${new_number}_$(echo $latest_file | cut -d'_' -f2-)"
+          echo "New file name: $new_file"
+
+          echo "Renaming the temporary file with the new number"
+          mv ${{ github.workspace }}/temp_$latest_file results/$new_file
+
+          echo "Regenerating data.json"
+          (cd ${{ github.workspace }} && ${{ github.workspace }}/sycl-repo/devops/scripts/benchmarks/main.py --dry-run --output-html remote)
+          cp ${{ github.workspace }}/sycl-repo/devops/scripts/benchmarks/html/data.json .
+
+        done
