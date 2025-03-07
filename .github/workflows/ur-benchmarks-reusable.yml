@@ -153,8 +153,10 @@ jobs:
         for attempt in {1..5}; do
           echo "Attempt $attempt to push changes"
 
-        echo "Copying data.json file"
-        cp ${{ github.workspace }}/sycl-repo/devops/scripts/benchmarks/html/data.json .
+          echo "Copying data.json file"
+          ls ${{ github.workspace }}/sycl-repo/devops/scripts/benchmarks/html/
+          cp ${{ github.workspace }}/sycl-repo/devops/scripts/benchmarks/html/data.json .
+          ls
 
           echo "Adding changes to git"
           git add data.json results/
