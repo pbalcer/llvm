@@ -163,7 +163,6 @@ jobs:
           # Conditionally force failure
           if [ "$FORCE_FAILURE" = true ]; then
             echo "Forcing push failure"
-            false
           else
             echo "Attempting to push changes"
             if git push origin benchmark-results; then
