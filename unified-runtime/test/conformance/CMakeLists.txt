@@ -115,6 +115,7 @@ set(TEST_SUBDIRECTORIES_DPCXX
     "exp_launch_properties"
     "memory-migrate"
     "usm"
+    "exp_host_task"
 )
 
 if(UR_FOUND_DPCXX)

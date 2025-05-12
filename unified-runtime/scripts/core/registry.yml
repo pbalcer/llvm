@@ -661,6 +661,9 @@ etors:
 - name: BINDLESS_IMAGES_FREE_MAPPED_LINEAR_MEMORY_EXP
   desc: Enumerator for $xBindlessImagesFreeMappedLinearMemoryExp
   value: '271'
+- name: ENQUEUE_HOST_TASK_EXP
+  desc: Enumerator for $xEnqueueHostTaskExp
+  value: '272'
 ---
 type: enum
 desc: Defines structure types

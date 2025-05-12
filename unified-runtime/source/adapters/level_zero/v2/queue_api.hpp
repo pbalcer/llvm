@@ -169,6 +169,10 @@ struct ur_queue_t_ {
       ur_kernel_handle_t, uint32_t, const size_t *, const size_t *,
       const size_t *, uint32_t, const ur_exp_launch_property_t *, uint32_t,
       const ur_event_handle_t *, ur_event_handle_t *) = 0;
+  virtual ur_result_t enqueueHostTaskExp(ur_exp_host_task_function_t, void *,
+                                         const ur_exp_host_task_properties_t *,
+                                         uint32_t, const ur_event_handle_t *,
+                                         ur_event_handle_t *) = 0;
   virtual ur_result_t
   enqueueEventsWaitWithBarrierExt(const ur_exp_enqueue_ext_properties_t *,
                                   uint32_t, const ur_event_handle_t *,

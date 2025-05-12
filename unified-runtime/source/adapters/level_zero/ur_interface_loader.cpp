@@ -244,7 +244,9 @@ UR_APIEXPORT ur_result_t UR_APICALL urGetEnqueueExpProcAddrTable(
       ur::level_zero::urEnqueueCooperativeKernelLaunchExp;
   pDdiTable->pfnTimestampRecordingExp =
       ur::level_zero::urEnqueueTimestampRecordingExp;
+  pDdiTable->pfnHostTaskExp = ur::level_zero::urEnqueueHostTaskExp;
   pDdiTable->pfnNativeCommandExp = ur::level_zero::urEnqueueNativeCommandExp;
+  pDdiTable->pfnHostTaskExp = ur::level_zero::urEnqueueHostTaskExp;
 
   return result;
 }

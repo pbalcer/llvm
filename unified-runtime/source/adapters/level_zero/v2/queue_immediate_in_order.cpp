@@ -20,6 +20,8 @@
 
 #include "../program.hpp"
 #include "../ur_interface_loader.hpp"
+#include "ur_api.h"
+#include "ze_api.h"
 
 namespace v2 {
 
@@ -180,6 +182,10 @@ ur_result_t ur_queue_immediate_in_order_t::queueFlush() {
 
 ur_queue_immediate_in_order_t::~ur_queue_immediate_in_order_t() {
   try {
+    if (HostTaskWorker.has_value()) {
+        HostTaskSender->close();
+        HostTaskWorker->join();
+    }
     UR_CALL_THROWS(queueFinish());
   } catch (...) {
     // Ignore errors during destruction
@@ -939,4 +945,82 @@ ur_result_t ur_queue_immediate_in_order_t::enqueueNativeCommandExp(
 
   return UR_RESULT_ERROR_UNSUPPORTED_FEATURE;
 }
+
+ur_result_t ur_queue_immediate_in_order_t::enqueueHostTaskExp(ur_exp_host_task_function_t pfnHostTask,
+    void *data, const ur_exp_host_task_properties_t *,
+    uint32_t numEventsInWaitList, const ur_event_handle_t *phEventWaitList,
+    ur_event_handle_t *phEvent) {
+
+    if (!HostTaskWorker) {
+        auto [sender, receiver] = spsc::createChannel<HostTaskData>();
+        HostTaskWorker = std::thread([Receiver = std::move(receiver)]() mutable {
+            std::vector<HostTaskData> Local;
+
+            for (;;) {
+                std::optional<HostTaskData> Data;
+                if (Local.empty()) {
+                    Data = Receiver.receive();
+                    if (!Data.has_value())
+                        break;
+                } else {
+                    Data = Receiver.tryReceive();
+                }
+
+                if (Data.has_value())
+                    Local.push_back(*Data);
+
+                auto NewEnd = std::remove_if(Local.begin(), Local.end(), [](const HostTaskData& task) {
+                    bool AllComplete = true;
+                    for (auto &Event : task.InputEvents)
+                        AllComplete &= (ZE_CALL_NOCHECK(zeEventQueryStatus, (Event->getZeEvent())) == ZE_RESULT_SUCCESS);
+
+                    if (!AllComplete)
+                        return false;
+
+                    task.pfnHostTask(task.data);
+
+                    if (task.OutputEvent) {
+                        ZE_CALL_NOCHECK(zeEventHostSignal, (task.OutputEvent));
+                    }
+
+                    return true;
+                });
+
+                Local.erase(NewEnd, Local.end());
+            }
+        });
+        HostTaskSender = std::move(sender);
+    }
+
+    HostTaskData HostTask;
+    HostTask.pfnHostTask = pfnHostTask;
+    HostTask.data = data;
+    HostTask.OutputEvent = nullptr;
+    for (uint32_t I = 0; I < numEventsInWaitList; ++I) {
+        HostTask.InputEvents.push_back(phEventWaitList[I]);
+    }
+
+    auto CommandListLocked = commandListManager.lock();
+
+    auto *Event = hContext->getNativeEventsPool().allocate();
+
+    auto ZeEvent = Event->getZeEvent();
+    ZE2UR_CALL(
+        zeCommandListAppendWaitOnEvents,
+        (CommandListLocked->getZeCommandList(), 1, &ZeEvent));
+
+    Event->retain();
+
+    Event->resetQueueAndCommand(this, UR_COMMAND_HOST_TASK_EXP);
+    HostTask.OutputEvent = Event->getZeEvent();
+
+    if (phEvent) {
+        *phEvent = Event;
+    }
+
+    HostTaskSender->send(std::move(HostTask));
+
+    return UR_RESULT_SUCCESS;
+}
+
 } // namespace v2

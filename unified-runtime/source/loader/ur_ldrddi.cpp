@@ -9996,6 +9996,71 @@ __urdlllocal ur_result_t UR_APICALL urUsmP2PPeerAccessGetInfoExp(
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+/// @brief Intercept function for urEnqueueHostTaskExp
+__urdlllocal ur_result_t UR_APICALL urEnqueueHostTaskExp(
+    /// [in] handle of the queue object
+    ur_queue_handle_t hQueue,
+    /// [in] Host task callback function.
+    ur_exp_host_task_function_t pfnHostTask,
+    /// [in][optional] data used by pfnHostTask
+    void *data,
+    /// [in][optional] pointer to the host task properties
+    const ur_exp_host_task_properties_t *pProperties,
+    /// [in] size of the event wait list
+    uint32_t numEventsInWaitList,
+    /// [in][optional][range(0, numEventsInWaitList)] pointer to a list of
+    /// events that must be complete before the kernel execution.
+    /// If nullptr, the numEventsInWaitList must be 0, indicating no wait
+    /// events.
+    const ur_event_handle_t *phEventWaitList,
+    /// [out][optional][alloc] return an event object that identifies the work
+    /// that has
+    /// been enqueued in nativeEnqueueFunc. If phEventWaitList and phEvent are
+    /// not NULL, phEvent must not refer to an element of the phEventWaitList
+    /// array.
+    ur_event_handle_t *phEvent) {
+  ur_result_t result = UR_RESULT_SUCCESS;
+
+  [[maybe_unused]] auto context = getContext();
+
+  // extract platform's function pointer table
+  auto dditable = reinterpret_cast<ur_queue_object_t *>(hQueue)->dditable;
+  auto pfnHostTaskExp = dditable->ur.EnqueueExp.pfnHostTaskExp;
+  if (nullptr == pfnHostTaskExp)
+    return UR_RESULT_ERROR_UNINITIALIZED;
+
+  // convert loader handle to platform handle
+  hQueue = reinterpret_cast<ur_queue_object_t *>(hQueue)->handle;
+
+  // convert loader handles to platform handles
+  auto phEventWaitListLocal =
+      std::vector<ur_event_handle_t>(numEventsInWaitList);
+  for (size_t i = 0; i < numEventsInWaitList; ++i)
+    phEventWaitListLocal[i] =
+        reinterpret_cast<ur_event_object_t *>(phEventWaitList[i])->handle;
+
+  // forward to device-platform
+  result =
+      pfnHostTaskExp(hQueue, pfnHostTask, data, pProperties,
+                     numEventsInWaitList, phEventWaitListLocal.data(), phEvent);
+
+  // In the event of ERROR_ADAPTER_SPECIFIC we should still attempt to wrap any
+  // output handles below.
+  if (UR_RESULT_SUCCESS != result && UR_RESULT_ERROR_ADAPTER_SPECIFIC != result)
+    return result;
+  try {
+    // convert platform handle to loader handle
+    if (nullptr != phEvent)
+      *phEvent = reinterpret_cast<ur_event_handle_t>(
+          context->factories.ur_event_factory.getInstance(*phEvent, dditable));
+  } catch (std::bad_alloc &) {
+    result = UR_RESULT_ERROR_OUT_OF_HOST_MEMORY;
+  }
+
+  return result;
+}
+
+///////////////////////////////////////////////////////////////////////////////
 /// @brief Intercept function for urEnqueueEventsWaitWithBarrierExt
 __urdlllocal ur_result_t UR_APICALL urEnqueueEventsWaitWithBarrierExt(
     /// [in] handle of the queue object
@@ -10635,6 +10700,7 @@ UR_DLLEXPORT ur_result_t UR_APICALL urGetEnqueueExpProcAddrTable(
           ur_loader::urEnqueueCooperativeKernelLaunchExp;
       pDdiTable->pfnTimestampRecordingExp =
           ur_loader::urEnqueueTimestampRecordingExp;
+      pDdiTable->pfnHostTaskExp = ur_loader::urEnqueueHostTaskExp;
       pDdiTable->pfnNativeCommandExp = ur_loader::urEnqueueNativeCommandExp;
     } else {
       // return pointers directly to platform's DDIs

@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "sycl/detail/helpers.hpp"
+#include "sycl/detail/cg_types.hpp"
 #include "ur_api.h"
 #include <algorithm>
 
@@ -404,6 +405,14 @@ void handler::setHandlerKernelBundle(kernel Kernel) {
   setHandlerKernelBundle(KernelBundleImpl);
 }
 
+void hostTaskCallback(void *pUserData) noexcept {
+  // Cast the user data back to HostTask pointer
+  detail::HostTask *Task = static_cast<detail::HostTask *>(pUserData);
+  Task->call(nullptr);
+
+  delete Task;
+}
+
 event handler::finalize() {
   // This block of code is needed only for reduction implementation.
   // It is harmless (does nothing) for everything else.
@@ -602,6 +611,26 @@ event handler::finalize() {
       }
       return MLastEvent;
     }
+  }
+
+  if (type == detail::CGType::CodeplayHostTask &&
+        detail::Scheduler::areEventsSafeForSchedulerBypass(
+            impl->CGData.MEvents, MQueue->getContextImplPtr())) {
+    auto Adapter = MQueue->getAdapter();
+    std::vector<ur_event_handle_t> RawEvents =
+          detail::Command::getUrEvents(impl->CGData.MEvents, MQueue, false);
+      const detail::EventImplPtr &LastEventImpl =
+          detail::getSyclObjImpl(MLastEvent);
+      ur_event_handle_t UREvent = nullptr;
+
+      detail::HostTask *hostTask = new detail::HostTask(*impl->MHostTask.get());
+
+      ur_result_t Error = Adapter->call_nocheck<detail::UrApiKind::urEnqueueHostTaskExp>(
+          MQueue->getHandleRef(), hostTaskCallback, hostTask, nullptr, RawEvents.size(), RawEvents.data(), &UREvent);
+      if (Error == UR_RESULT_SUCCESS) {
+        LastEventImpl->setHandle(UREvent);
+      }
+      return MLastEvent;
   }
 
   std::unique_ptr<detail::CG> CommandGroup;

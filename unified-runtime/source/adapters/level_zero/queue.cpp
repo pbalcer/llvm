@@ -19,6 +19,7 @@
 #include "common.hpp"
 #include "event.hpp"
 #include "queue.hpp"
+#include "ur_api.h"
 #include "ur_interface_loader.hpp"
 #include "ur_level_zero.hpp"
 #include "ur_util.hpp"
@@ -933,6 +934,16 @@ ur_result_t urEnqueueKernelLaunchCustomExp(
          "{} function not implemented!", __FUNCTION__);
   return UR_RESULT_ERROR_UNSUPPORTED_FEATURE;
 }
+
+
+ur_result_t urEnqueueHostTaskExp(
+    ur_queue_handle_t hQueue, ur_exp_host_task_function_t pfnHostTask,
+    void *data, const ur_exp_host_task_properties_t *pProperties,
+    uint32_t numEventsInWaitList, const ur_event_handle_t *phEventWaitList,
+    ur_event_handle_t *phEvent) {
+    return UR_RESULT_ERROR_UNSUPPORTED_FEATURE;
+}
+
 
 } // namespace ur::level_zero
 
