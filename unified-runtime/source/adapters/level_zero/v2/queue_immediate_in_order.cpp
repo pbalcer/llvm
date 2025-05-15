@@ -958,16 +958,8 @@ ur_result_t ur_queue_immediate_in_order_t::enqueueHostTaskExp(ur_exp_host_task_f
     ur_event_handle_t *phEvent) {
 
     if (!HostTaskWorker) {
-        auto cmdlist = hContext->getCommandListCache().getImmediateCommandList(
-                    hDevice->ZeDevice,
-                    {true, getZeOrdinal(hDevice),
-                    true /* always enable copy offload */},
-                    ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS,
-                    ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
-                    std::nullopt);
-
         auto [sender, receiver] = spsc::createChannel<HostTaskData>();
-        HostTaskWorker = std::thread([Receiver = std::move(receiver), Cmdlist = std::move(cmdlist)]() mutable {
+        HostTaskWorker = std::thread([Receiver = std::move(receiver)]() mutable {
             std::queue<HostTaskData> Local;
             std::vector<HostTaskData> Cleanup;
 
