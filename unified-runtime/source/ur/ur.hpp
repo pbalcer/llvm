@@ -571,7 +571,112 @@ static inline void roundToHighestFactorOfGlobalSizeIn3d(
   roundToHighestFactorOfGlobalSize(ThreadsPerBlock[2], GlobalSize[2]);
 }
 
+#if 0
+namespace spsc {
 
+template <typename T>
+class ChannelData {
+public:
+    explicit ChannelData(size_t capacity)
+        : buffer(capacity), head(0), tail(0), open(true) {}
+
+    std::vector<T> buffer;
+    std::atomic<size_t> head;
+    std::atomic<size_t> tail;
+    std::atomic<bool> open;
+};
+
+template <typename T>
+class Sender {
+public:
+    explicit Sender(std::shared_ptr<ChannelData<T>> data)
+        : data(std::move(data)) {}
+
+    Sender(const Sender&) = delete;
+    Sender& operator=(const Sender&) = delete;
+
+    Sender(Sender&&) noexcept = default;
+    Sender& operator=(Sender&&) noexcept = default;
+
+    ~Sender() = default;
+
+    bool send(const T& item) {
+        size_t current_tail = data->tail.load(std::memory_order_relaxed);
+        size_t next_tail = (current_tail + 1) % data->buffer.size();
+
+        if (next_tail == data->head.load(std::memory_order_acquire)) {
+            return false; // Buffer is full
+        }
+
+        data->buffer[current_tail] = item;
+        data->tail.store(next_tail, std::memory_order_release);
+        return true;
+    }
+
+    void close() {
+        data->open.store(false, std::memory_order_release);
+    }
+
+private:
+    std::shared_ptr<ChannelData<T>> data;
+};
+
+template <typename T>
+class Receiver {
+public:
+    explicit Receiver(std::shared_ptr<ChannelData<T>> data)
+        : data(std::move(data)) {}
+
+    Receiver(const Receiver&) = delete;
+    Receiver& operator=(const Receiver&) = delete;
+
+    Receiver(Receiver&&) noexcept = default;
+    Receiver& operator=(Receiver&&) noexcept = default;
+
+    ~Receiver() = default;
+
+    std::optional<T> receive() {
+        while (true) {
+            size_t current_head = data->head.load(std::memory_order_relaxed);
+
+            if (current_head != data->tail.load(std::memory_order_acquire)) {
+                T item = data->buffer[current_head];
+                data->head.store((current_head + 1) % data->buffer.size(), std::memory_order_release);
+                return item;
+            }
+
+            if (!data->open.load(std::memory_order_acquire)) {
+                return std::nullopt; // Channel is closed and empty
+            }
+
+            //std::this_thread::yield(); // Yield to allow other threads to run
+        }
+    }
+
+    std::optional<T> tryReceive() {
+        size_t current_head = data->head.load(std::memory_order_relaxed);
+
+        if (current_head == data->tail.load(std::memory_order_acquire)) {
+            return std::nullopt; // Buffer is empty
+        }
+
+        T item = data->buffer[current_head];
+        data->head.store((current_head + 1) % data->buffer.size(), std::memory_order_release);
+        return item;
+    }
+
+private:
+    std::shared_ptr<ChannelData<T>> data;
+};
+
+template <typename T>
+std::pair<Sender<T>, Receiver<T>> createChannel(size_t capacity = 10000) {
+    auto data = std::make_shared<ChannelData<T>>(capacity);
+    return {Sender<T>(data), Receiver<T>(data)};
+}
+
+} // namespace spsc
+#else
 namespace spsc {
 
 template <typename T>
@@ -661,3 +766,4 @@ std::pair<Sender<T>, Receiver<T>> createChannel() {
 }
 
 } // namespace spsc
+#endif

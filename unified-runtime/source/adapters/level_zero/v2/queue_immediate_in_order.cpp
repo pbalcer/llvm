@@ -22,6 +22,10 @@
 #include "../ur_interface_loader.hpp"
 #include "ur_api.h"
 #include "ze_api.h"
+#include "event_provider.hpp"
+#include "event_provider_normal.hpp"
+#include "event_pool.hpp"
+#include <vector>
 
 namespace v2 {
 
@@ -78,7 +82,8 @@ ur_queue_immediate_in_order_t::ur_queue_immediate_in_order_t(
               ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS,
               getZePriority(pProps ? pProps->flags : ur_queue_flags_t{}),
               getZeIndex(pProps)),
-          eventFlagsFromQueueFlags(flags), this) {}
+          eventFlagsFromQueueFlags(flags), this),
+              normalEventsPool(hContext->getEventPoolCache().borrow(hDevice->Id.value(), 0)) {}
 
 ur_queue_immediate_in_order_t::ur_queue_immediate_in_order_t(
     ur_context_handle_t hContext, ur_device_handle_t hDevice,
@@ -95,7 +100,8 @@ ur_queue_immediate_in_order_t::ur_queue_immediate_in_order_t(
                   }
                 }
               }),
-          eventFlagsFromQueueFlags(flags), this) {}
+          eventFlagsFromQueueFlags(flags), this),
+              normalEventsPool(hContext->getEventPoolCache().borrow(hDevice->Id.value(), 0)) {}
 
 ze_event_handle_t ur_queue_immediate_in_order_t::getSignalEvent(
     locked<ur_command_list_manager> &commandList, ur_event_handle_t *hUserEvent,
@@ -952,11 +958,30 @@ ur_result_t ur_queue_immediate_in_order_t::enqueueHostTaskExp(ur_exp_host_task_f
     ur_event_handle_t *phEvent) {
 
     if (!HostTaskWorker) {
+        auto cmdlist = hContext->getCommandListCache().getImmediateCommandList(
+                    hDevice->ZeDevice,
+                    {true, getZeOrdinal(hDevice),
+                    true /* always enable copy offload */},
+                    ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS,
+                    ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                    std::nullopt);
+
         auto [sender, receiver] = spsc::createChannel<HostTaskData>();
-        HostTaskWorker = std::thread([Receiver = std::move(receiver)]() mutable {
-            std::vector<HostTaskData> Local;
+        HostTaskWorker = std::thread([Receiver = std::move(receiver), Cmdlist = std::move(cmdlist)]() mutable {
+            std::queue<HostTaskData> Local;
+            std::vector<HostTaskData> Cleanup;
 
             for (;;) {
+                auto CleanupNewEnd = std::remove_if(Cleanup.begin(), Cleanup.end(), [](const HostTaskData& task) {
+                    bool completed = ZE_CALL_NOCHECK(zeEventQueryStatus, (task.CleanupEvent->getZeEvent())) == ZE_RESULT_SUCCESS;
+                    if (completed) {
+                        task.CleanupEvent->release();
+                        task.OutputEvent->release();
+                    }
+                    return completed;
+                });
+                Cleanup.erase(CleanupNewEnd, Cleanup.end());
+
                 std::optional<HostTaskData> Data;
                 if (Local.empty()) {
                     Data = Receiver.receive();
@@ -967,26 +992,28 @@ ur_result_t ur_queue_immediate_in_order_t::enqueueHostTaskExp(ur_exp_host_task_f
                 }
 
                 if (Data.has_value())
-                    Local.push_back(*Data);
+                    Local.push(*Data);
 
-                auto NewEnd = std::remove_if(Local.begin(), Local.end(), [](const HostTaskData& task) {
-                    bool AllComplete = true;
-                    for (auto &Event : task.InputEvents)
-                        AllComplete &= (ZE_CALL_NOCHECK(zeEventQueryStatus, (Event->getZeEvent())) == ZE_RESULT_SUCCESS);
-
-                    if (!AllComplete)
-                        return false;
-
-                    task.pfnHostTask(task.data);
-
-                    if (task.OutputEvent) {
-                        ZE_CALL_NOCHECK(zeEventHostSignal, (task.OutputEvent));
+                auto &task = Local.front();
+                auto NewEnd = std::remove_if(task.InputEvents.begin(), task.InputEvents.end(), [](const ur_event_handle_t& Event) {
+                    bool completed = ZE_CALL_NOCHECK(zeEventQueryStatus, (Event->getZeEvent())) == ZE_RESULT_SUCCESS;
+                    if (completed) {
+                        Event->release();
                     }
-
-                    return true;
+                    return completed;
                 });
+                task.InputEvents.erase(NewEnd, task.InputEvents.end());
 
-                Local.erase(NewEnd, Local.end());
+                if (!task.InputEvents.empty()) {
+                    continue;
+                }
+
+                task.pfnHostTask(task.data);
+
+                ZE_CALL_NOCHECK(zeEventHostSignal, (task.OutputEvent->getZeEvent()));
+
+                Cleanup.push_back(task);
+                Local.pop();
             }
         });
         HostTaskSender = std::move(sender);
@@ -996,26 +1023,32 @@ ur_result_t ur_queue_immediate_in_order_t::enqueueHostTaskExp(ur_exp_host_task_f
     HostTask.pfnHostTask = pfnHostTask;
     HostTask.data = data;
     HostTask.OutputEvent = nullptr;
+
     for (uint32_t I = 0; I < numEventsInWaitList; ++I) {
+        phEventWaitList[I]->retain();
         HostTask.InputEvents.push_back(phEventWaitList[I]);
     }
 
     auto CommandListLocked = commandListManager.lock();
 
-    auto *Event = hContext->getNativeEventsPool().allocate();
+    auto CleanupEvent = getSignalEvent(CommandListLocked, &HostTask.CleanupEvent, UR_COMMAND_HOST_TASK_EXP);
+
+    auto *Event = normalEventsPool->allocate();
 
     auto ZeEvent = Event->getZeEvent();
     ZE2UR_CALL(
         zeCommandListAppendWaitOnEvents,
         (CommandListLocked->getZeCommandList(), 1, &ZeEvent));
-
-    Event->retain();
+    ZE2UR_CALL(
+      zeCommandListAppendSignalEvent,
+        (CommandListLocked->getZeCommandList(), CleanupEvent));
 
     Event->resetQueueAndCommand(this, UR_COMMAND_HOST_TASK_EXP);
-    HostTask.OutputEvent = Event->getZeEvent();
+    HostTask.OutputEvent = Event;
 
     if (phEvent) {
         *phEvent = Event;
+        Event->retain();
     }
 
     HostTaskSender->send(std::move(HostTask));

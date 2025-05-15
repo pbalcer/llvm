@@ -42,11 +42,13 @@ private:
     ur_exp_host_task_function_t pfnHostTask;
     void *data;
     std::vector<ur_event_handle_t> InputEvents;
-    ze_event_handle_t OutputEvent;
+    ur_event_handle_t OutputEvent;
+    ur_event_handle_t CleanupEvent;
   };
 
   std::optional<spsc::Sender<HostTaskData>> HostTaskSender;
   std::optional<std::thread> HostTaskWorker;
+  v2::raii::cache_borrowed_event_pool normalEventsPool;
 
   wait_list_view
   getWaitListView(locked<ur_command_list_manager> &commandList,

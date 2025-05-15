@@ -405,13 +405,50 @@ void handler::setHandlerKernelBundle(kernel Kernel) {
   setHandlerKernelBundle(KernelBundleImpl);
 }
 
-void hostTaskCallback(void *pUserData) noexcept {
+extern "C" void hostTaskCallback(void *pUserData) noexcept {
   // Cast the user data back to HostTask pointer
   detail::HostTask *Task = static_cast<detail::HostTask *>(pUserData);
   Task->call(nullptr);
 
   delete Task;
 }
+
+std::optional<std::string> ur_getenv(const char *name) {
+#if defined(_WIN32)
+  constexpr int buffer_size = 1024;
+  char buffer[buffer_size];
+  auto rc = GetEnvironmentVariableA(name, buffer, buffer_size);
+  if (0 != rc && rc < buffer_size) {
+    return std::string(buffer);
+  } else if (rc >= buffer_size) {
+    std::stringstream ex_ss;
+    ex_ss << "Environment variable " << name << " value too long!"
+          << " Maximum length is " << buffer_size - 1 << " characters.";
+    throw std::invalid_argument(ex_ss.str());
+  }
+  return std::nullopt;
+#else
+  const char *tmp_env = getenv(name);
+  if (tmp_env != nullptr && tmp_env[0] != '\0') {
+    return std::string(tmp_env);
+  } else {
+    return std::nullopt;
+  }
+#endif
+}
+
+inline bool getenv_tobool(const char *name, bool def = false) {
+  if (auto env = ur_getenv(name); env) {
+    std::transform(env->begin(), env->end(), env->begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    auto true_str = {"y", "yes", "t", "true", "1"};
+    return std::find(true_str.begin(), true_str.end(), *env) != true_str.end();
+  }
+
+  return def;
+}
+
+static const bool USE_UR_HOST_TASK = getenv_tobool("UR_HOST_TASK");
 
 event handler::finalize() {
   // This block of code is needed only for reduction implementation.
@@ -613,14 +650,12 @@ event handler::finalize() {
     }
   }
 
-  if (type == detail::CGType::CodeplayHostTask &&
+  if (USE_UR_HOST_TASK && type == detail::CGType::CodeplayHostTask &&
         detail::Scheduler::areEventsSafeForSchedulerBypass(
             impl->CGData.MEvents, MQueue->getContextImplPtr())) {
     auto Adapter = MQueue->getAdapter();
     std::vector<ur_event_handle_t> RawEvents =
           detail::Command::getUrEvents(impl->CGData.MEvents, MQueue, false);
-      const detail::EventImplPtr &LastEventImpl =
-          detail::getSyclObjImpl(MLastEvent);
       ur_event_handle_t UREvent = nullptr;
 
       detail::HostTask *hostTask = new detail::HostTask(*impl->MHostTask.get());
@@ -628,7 +663,12 @@ event handler::finalize() {
       ur_result_t Error = Adapter->call_nocheck<detail::UrApiKind::urEnqueueHostTaskExp>(
           MQueue->getHandleRef(), hostTaskCallback, hostTask, nullptr, RawEvents.size(), RawEvents.data(), &UREvent);
       if (Error == UR_RESULT_SUCCESS) {
-        LastEventImpl->setHandle(UREvent);
+        auto NewEvent = std::make_shared<sycl::detail::event_impl>(MQueue);
+        NewEvent->setContextImpl(MQueue->getContextImplPtr());
+        NewEvent->setStateIncomplete();
+        NewEvent->setHandle(UREvent);
+        MLastEvent = sycl::detail::createSyclObjFromImpl<sycl::event>(NewEvent);
+        return MLastEvent;
       }
       return MLastEvent;
   }
