@@ -406,10 +406,13 @@ void handler::setHandlerKernelBundle(kernel Kernel) {
 }
 
 extern "C" void hostTaskCallback(void *pUserData) noexcept {
-  // Cast the user data back to HostTask pointer
-  detail::HostTask *Task = static_cast<detail::HostTask *>(pUserData);
-  Task->call(nullptr);
-
+  auto Task = static_cast<detail::HostTask*>(pUserData);
+  assert(Task->MQueue != nullptr);
+  try {
+    Task->call(nullptr);
+  } catch (...) {
+    Task->MQueue->reportAsyncException(std::current_exception());
+  }
   delete Task;
 }
 
@@ -658,15 +661,18 @@ event handler::finalize() {
           detail::Command::getUrEvents(impl->CGData.MEvents, MQueue, false);
       ur_event_handle_t UREvent = nullptr;
 
-      detail::HostTask *hostTask = new detail::HostTask(*impl->MHostTask.get());
+      impl->MHostTask->MQueue = MQueue;
+
+      auto Task = new detail::HostTask(*impl->MHostTask.get());
 
       ur_result_t Error = Adapter->call_nocheck<detail::UrApiKind::urEnqueueHostTaskExp>(
-          MQueue->getHandleRef(), hostTaskCallback, hostTask, nullptr, RawEvents.size(), RawEvents.data(), &UREvent);
+          MQueue->getHandleRef(), hostTaskCallback, Task, nullptr, RawEvents.size(), RawEvents.data(), &UREvent);
       if (Error == UR_RESULT_SUCCESS) {
         auto NewEvent = std::make_shared<sycl::detail::event_impl>(MQueue);
         NewEvent->setContextImpl(MQueue->getContextImplPtr());
         NewEvent->setStateIncomplete();
         NewEvent->setHandle(UREvent);
+        NewEvent->setSubmittedQueue(MQueue);
         MLastEvent = sycl::detail::createSyclObjFromImpl<sycl::event>(NewEvent);
         return MLastEvent;
       }
