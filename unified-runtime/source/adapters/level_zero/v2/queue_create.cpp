@@ -69,7 +69,7 @@ ur_result_t urQueueCreate(ur_context_handle_t hContext,
 
   auto zeIndex = v2::getZeIndex(pProperties);
 
-  if ((flags & UR_QUEUE_FLAG_OUT_OF_ORDER_EXEC_MODE_ENABLE) != 0) {
+  if (false && (flags & UR_QUEUE_FLAG_OUT_OF_ORDER_EXEC_MODE_ENABLE) != 0) {
     *phQueue =
         ur_queue_handle_t_::create<v2::ur_queue_immediate_out_of_order_t>(
             hContext, hDevice, v2::getZeOrdinal(hDevice),
