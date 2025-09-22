@@ -116,13 +116,18 @@ target_include_directories(LevelZeroLoader-Headers
     INTERFACE "$<BUILD_INTERFACE:${LEVEL_ZERO_INCLUDE_DIR}>"
               "$<INSTALL_INTERFACE:${LEVEL_ZERO_TARGET_INCLUDE_DIR}>"
 )
-find_path(L0_COMPUTE_RUNTIME_HEADERS
-  NAMES "ze_intel_gpu.h"
-  PATH_SUFFIXES "level_zero"
-)
-if(L0_COMPUTE_RUNTIME_HEADERS)
-    set(COMPUTE_RUNTIME_LEVEL_ZERO_INCLUDE "${L0_COMPUTE_RUNTIME_HEADERS}")
-    set(COMPUTE_RUNTIME_REPO_PATH "${L0_COMPUTE_RUNTIME_HEADERS}")
+
+if(UR_USE_SYSTEM_COMPUTE_RUNTIME_L0_HEADERS)
+    find_path(L0_COMPUTE_RUNTIME_HEADERS
+        NAMES "ze_intel_gpu.h"
+        PATH_SUFFIXES "level_zero"
+    )
+    if(L0_COMPUTE_RUNTIME_HEADERS)
+        set(COMPUTE_RUNTIME_LEVEL_ZERO_INCLUDE "${L0_COMPUTE_RUNTIME_HEADERS}")
+        set(COMPUTE_RUNTIME_REPO_PATH "${L0_COMPUTE_RUNTIME_HEADERS}")
+    else()
+        message(FATAL_ERROR "UR_USE_SYSTEM_COMPUTE_RUNTIME_L0_HEADERS=ON but Compute Runtime Level Zero headers not found")
+    endif()
 else()
     set(UR_COMPUTE_RUNTIME_REPO "https://github.com/intel/compute-runtime.git")
     set(UR_COMPUTE_RUNTIME_TAG 25.31.34666.3)
