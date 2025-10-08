@@ -105,6 +105,7 @@ createSpirvProgram(context_impl &Context, const unsigned char *Data,
 // TODO replace this with a new UR API function
 static bool isDeviceBinaryTypeSupported(context_impl &ContextImpl,
                                         ur::DeviceBinaryType Format) {
+  return true;
   // All formats except SYCL_DEVICE_BINARY_TYPE_SPIRV are supported.
   if (Format != SYCL_DEVICE_BINARY_TYPE_SPIRV)
     return true;
@@ -3816,6 +3817,11 @@ bool doesImageTargetMatchDevice(const RTDeviceBinaryImage &Img,
       if (PlatformName == "AMDGPU") {
         return (strcmp(Target, __SYCL_DEVICE_BINARY_TARGET_AMDGCN) == 0 ||
                 strcmp(Target, __SYCL_DEVICE_BINARY_TARGET_LLVM_AMDGCN) == 0);
+      }
+      if (PlatformName == "LEVEL_ZERO") {
+        return (strcmp(Target, __SYCL_DEVICE_BINARY_TARGET_SPIRV32) == 0 ||
+                strcmp(Target, __SYCL_DEVICE_BINARY_TARGET_SPIRV64) == 0 ||
+                strcmp(Target, __SYCL_DEVICE_BINARY_TARGET_SPIRV64_GEN) == 0);
       }
       assert(false && "Unhandled liboffload platform");
       return false;
