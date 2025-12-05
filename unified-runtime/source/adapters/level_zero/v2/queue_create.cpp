@@ -98,6 +98,8 @@ ur_result_t urQueueCreate(ur_context_handle_t hContext,
              "urQueueCreate called with both UR_QUEUE_FLAG_SUBMISSION_BATCHED "
              "and UR_QUEUE_FLAG_SUBMISSION_IMMEDIATE in ur_queue_flags_t. "
              "Defaulting to the immediate submission mode.");
+
+      flags &= ~UR_QUEUE_FLAG_SUBMISSION_BATCHED;
     }
 
     immediate = true;
