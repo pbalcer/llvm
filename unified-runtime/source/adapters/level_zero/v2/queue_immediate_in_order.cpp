@@ -167,6 +167,9 @@ ur_result_t ur_queue_immediate_in_order_t::queueFinish() {
 
 void ur_queue_immediate_in_order_t::recordSubmittedKernel(
     ur_kernel_handle_t hKernel) {
+  if (submittedKernels.size() > 1024) {
+    queueFinish();
+  }
   submittedKernels.push_back(hKernel);
   hKernel->RefCount.increment();
 }
