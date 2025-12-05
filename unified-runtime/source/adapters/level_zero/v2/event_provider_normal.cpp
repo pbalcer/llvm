@@ -70,6 +70,10 @@ raii::cache_borrowed_event provider_pool::allocate() {
   if (freelist.empty()) {
     return nullptr;
   }
+
+  dumpStats("PROVIDER SIZE", freelist.size());
+
+
   auto e = std::move(freelist.back());
   freelist.pop_back();
   return raii::cache_borrowed_event(
@@ -85,6 +89,8 @@ std::unique_ptr<provider_pool> provider_normal::createProviderPool() {
 
 raii::cache_borrowed_event provider_normal::allocate() {
   TRACK_SCOPE_LATENCY("provider_normal::allocate");
+
+  dumpStats("POOLS SIZE", pools.size());
 
   if (pools.empty()) {
     pools.emplace_back(createProviderPool());

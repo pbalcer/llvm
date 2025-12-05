@@ -191,6 +191,8 @@ static auto getUrResultString = [](ur_result_t Result) {
   }
 };
 
+bool dumpStats(const char* module, uint64_t value);
+
 // Trace an internal UR call; returns in case of an error.
 #define UR_CALL(Call)                                                          \
   {                                                                            \

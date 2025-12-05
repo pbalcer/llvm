@@ -22,6 +22,9 @@ ur_event_handle_t event_pool::allocate() {
 
   std::unique_lock<std::mutex> lock(*mutex);
 
+  dumpStats("EVENTPOOL EVENTS", events.size());
+  dumpStats("EVENTPOOL FREELIST", freelist.size());
+
   if (freelist.empty()) {
     auto start = events.size();
     auto end = start + EVENTS_BURST;

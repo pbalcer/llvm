@@ -12,6 +12,12 @@
 #include "logger/ur_logger.hpp"
 #include "usm.hpp"
 
+#include <optional>
+#include <chrono>
+#include <string>
+#include <unordered_map>
+#include <mutex>
+
 ur_result_t ze2urResult(ze_result_t ZeResult) {
   if (ZeResult == ZE_RESULT_SUCCESS)
     return UR_RESULT_SUCCESS;
@@ -361,4 +367,42 @@ thread_local int32_t ErrorAdapterNativeCode;
 ur_result_t zerPluginGetLastError(char **message) {
   *message = &ErrorMessage[0];
   return ErrorMessageCode;
+}
+
+bool dumpStats(const char* module, uint64_t value) {
+    static const auto frequency_secs = getenv_to_unsigned("UR_L0_DUMP_STATS");
+    if (!frequency_secs) {
+        return false; // Not configured
+    }
+
+    using clock = std::chrono::steady_clock;
+
+    // Per-module last dump timestamp map, protected by a mutex.
+    static std::unordered_map<std::string, clock::time_point> lastDump;
+    static std::mutex mtx;
+
+    const auto now = clock::now();
+    const std::string key = (module && *module) ? std::string(module) : std::string("<unknown>");
+
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        auto it = lastDump.find(key);
+        if (it == lastDump.end()) {
+            // First time for this module: insert now and dump immediately.
+            lastDump.emplace(key, now);
+            std::fprintf(stderr, "[UR_L0] module=%s value=%llu\n", key.c_str(),
+                         static_cast<unsigned long long>(value));
+            return true;
+        }
+
+        const auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - it->second).count();
+        if (elapsed >= *frequency_secs) {
+            it->second = now;
+            std::fprintf(stderr, "[UR_L0] module=%s value=%llu\n", key.c_str(),
+                         static_cast<unsigned long long>(value));
+            return true;
+        }
+    }
+
+    return false;
 }

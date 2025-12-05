@@ -31,6 +31,9 @@ raii::cache_borrowed_event_pool event_pool_cache::borrow(DeviceId id,
   }
 
   auto &vec = pools[event_desc.index()];
+
+  dumpStats("EVENTPOOLCACHE", vec.size());
+
   if (vec.empty()) {
     vec.emplace_back(
         std::make_unique<event_pool>(hContext, providerCreate(id, flags)));

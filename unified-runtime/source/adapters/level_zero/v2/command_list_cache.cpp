@@ -163,6 +163,9 @@ command_list_cache_t::getRegularCommandList(ze_device_handle_t ZeDevice,
 raii::ze_command_list_handle_t
 command_list_cache_t::getCommandList(const command_list_descriptor_t &desc) {
   std::unique_lock<ur_mutex> Lock(ZeCommandListCacheMutex);
+
+  dumpStats("COMMANDLIST", ZeCommandListCache.size());
+
   auto it = ZeCommandListCache.find(desc);
   if (it == ZeCommandListCache.end()) {
     Lock.unlock();
