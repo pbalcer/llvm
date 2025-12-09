@@ -441,6 +441,7 @@ TEST_P(urBatchedQueueTest, VectorOfSubmittedBatchesIsClearedQueueFinish) {
                                          nullptr, nullptr));
   // A non-empty batch should be submitted for execution and renewed
   ASSERT_SUCCESS(urQueueFlush(queue1));
+  ASSERT_EQ(context->getCommandListCache().getNumRegularCommandLists(), 0);
 
   // The vector of current batches is cleared
   ASSERT_SUCCESS(urQueueFinish(queue1));
