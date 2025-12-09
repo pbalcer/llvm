@@ -451,6 +451,7 @@ TEST_P(urBatchedQueueTest, VectorOfSubmittedBatchesIsClearedQueueFinish) {
 
 TEST_P(urBatchedQueueTest, ReuseCommandLists) {
   int iterNum = 3;
+  // Repetaed several times to ensure that command lists are reused when the initial capacity is reached multiple times
   for (int i = 0; i < iterNum; i++) {
     ASSERT_NO_FATAL_FAILURE(vectorOfSubmittedBatchesIsClearedHelper());
   }
