@@ -337,6 +337,15 @@ struct urMemImageTest : urContextTest {
           VALUES),                                                             \
       PRINTER)
 
+      // UR_QUEUE_FLAG_SUBMISSION_IMMEDIATE in params
+#define UUR_MULTI_QUEUE_TYPE_TEST_SUITE_WITH_PARAM(FIXTURE, VALUES, PRINTER)             \
+  INSTANTIATE_TEST_SUITE_P(                                                    \
+      , FIXTURE,                                                               \
+      testing::Combine(                                                        \
+          ::testing::ValuesIn(uur::DevicesEnvironment::instance->devices),     \
+          VALUES, ::testing::ValuesIn(UR_QUEUE_FLAG_SUBMISSION_BATCHED, 0)),                                                             \
+      PRINTER)
+
 namespace uur {
 
 template <class T> struct urContextTestWithParam : urDeviceTestWithParam<T> {
@@ -460,6 +469,27 @@ struct urHostPipeTest : urQueueTest {
 };
 
 template <class T> struct urQueueTestWithParam : urContextTestWithParam<T> {
+  using urContextTestWithParam<T>::device;
+  using urContextTestWithParam<T>::context;
+
+  void SetUp() override {
+    UUR_RETURN_ON_FATAL_FAILURE(urContextTestWithParam<T>::SetUp());
+    ASSERT_SUCCESS(urQueueCreate(context, device, &queue_properties, &queue));
+    ASSERT_NE(queue, nullptr);
+  }
+
+  void TearDown() override {
+    if (queue) {
+      EXPECT_SUCCESS(urQueueRelease(queue));
+    }
+    UUR_RETURN_ON_FATAL_FAILURE(urContextTestWithParam<T>::TearDown());
+  }
+  ur_queue_properties_t queue_properties = {UR_STRUCTURE_TYPE_QUEUE_PROPERTIES,
+                                            nullptr, 0};
+  ur_queue_handle_t queue = nullptr;
+};
+
+template <class T> struct urMultiQueueTypeTestWithParam : urContextTestWithParam<T> {
   using urContextTestWithParam<T>::device;
   using urContextTestWithParam<T>::context;
 
