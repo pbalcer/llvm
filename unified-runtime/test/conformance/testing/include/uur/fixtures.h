@@ -1253,6 +1253,22 @@ std::string platformTestWithParamPrinter(
          GTestSanitizeString(ss.str());
 }
 
+// based on deviceTestWithParamPrinter
+template <class T>
+std::string multiQueuePrinter(
+    const ::testing::TestParamInfo<std::tuple<DeviceTuple, MultiQueueParam<T>>> &info) {
+  auto device = std::get<0>(info.param).device;
+  auto paramTuple = std::get<1>(info.param);
+
+  auto param = std::get<0>(paramTuple);
+  auto queueMode = std::get<1>(paramTuple);
+
+  std::stringstream ss;
+  ss << param << "__" << queueMode;
+  return uur::GetPlatformAndDeviceName(device) + "__" +
+         GTestSanitizeString(ss.str());
+}
+
 /// @brief
 /// @tparam T
 /// @param info
