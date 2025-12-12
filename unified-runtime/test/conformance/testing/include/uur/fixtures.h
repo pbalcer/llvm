@@ -489,16 +489,19 @@ template <class T> struct urQueueTestWithParam : urContextTestWithParam<T> {
   ur_queue_handle_t queue = nullptr;
 };
 
-template <class T> struct MultiQueueParam {
-  std::tuple<T, ur_queue_flag_t> param;
-};
+template <class T> using MultiQueueParam =
+  std::tuple<T, ur_queue_flag_t>;
 
-template <class T> struct urMultiQueueTypeTestWithParam : urContextTestWithParam<T> {
-  using urContextTestWithParam<T>::device;
-  using urContextTestWithParam<T>::context;
+template <class T> struct urMultiQueueTypeTestWithParam : urContextTestWithParam<MultiQueueParam<T>> {
+  using urContextTestWithParam<MultiQueueParam<T>>::device;
+  using urContextTestWithParam<MultiQueueParam<T>>::context;
 
   void SetUp() override {
-    UUR_RETURN_ON_FATAL_FAILURE(urContextTestWithParam<T>::SetUp());
+    UUR_RETURN_ON_FATAL_FAILURE(urContextTestWithParam<MultiQueueParam<T>>::SetUp());
+
+    ur_queue_properties_t queue_properties = {UR_STRUCTURE_TYPE_QUEUE_PROPERTIES,
+                                            nullptr, this->getQueueFlag()};
+
     ASSERT_SUCCESS(urQueueCreate(context, device, &queue_properties, &queue));
     ASSERT_NE(queue, nullptr);
   }
@@ -509,8 +512,15 @@ template <class T> struct urMultiQueueTypeTestWithParam : urContextTestWithParam
     }
     UUR_RETURN_ON_FATAL_FAILURE(urContextTestWithParam<T>::TearDown());
   }
-  ur_queue_properties_t queue_properties = {UR_STRUCTURE_TYPE_QUEUE_PROPERTIES,
-                                            nullptr, 0};
+
+  MultiQueueParam<T> getParamTuple() {
+    return std::get<1>(urContextTestWithParam<MultiQueueParam<T>>::getParam());
+  }  
+
+  const T &getParam() const { return std::get<0>(this->getParamTuple()); }
+
+  ur_queue_flag_t getQueueFlag() {return std::get<1>(this->getParamTuple());}
+
   ur_queue_handle_t queue = nullptr;
 };
 
