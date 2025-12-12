@@ -489,6 +489,10 @@ template <class T> struct urQueueTestWithParam : urContextTestWithParam<T> {
   ur_queue_handle_t queue = nullptr;
 };
 
+template <class T> struct MultiQueueParam {
+  std::tuple<T, ur_queue_flag_t> param;
+};
+
 template <class T> struct urMultiQueueTypeTestWithParam : urContextTestWithParam<T> {
   using urContextTestWithParam<T>::device;
   using urContextTestWithParam<T>::context;
