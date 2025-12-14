@@ -8,9 +8,11 @@
 #include <uur/fixtures.h>
 #include <uur/known_failure.h>
 
-struct urEnqueueMemBufferCopyTestWithParam : uur::urQueueTestWithParam<size_t> {
+// struct urEnqueueMemBufferCopyTestWithParam : uur::urQueueTestWithParam<size_t> {
+  struct urEnqueueMemBufferCopyTestWithParam : uur::urMultiQueueTypeTestWithParam<size_t> {
+
   void SetUp() override {
-    UUR_RETURN_ON_FATAL_FAILURE(urQueueTestWithParam::SetUp());
+    UUR_RETURN_ON_FATAL_FAILURE(urMultiQueueTypeTestWithParam::SetUp());
     ASSERT_SUCCESS(urMemBufferCreate(context, UR_MEM_FLAG_WRITE_ONLY, size,
                                      nullptr, &src_buffer));
     ASSERT_SUCCESS(urMemBufferCreate(context, UR_MEM_FLAG_READ_ONLY, size,
@@ -27,10 +29,10 @@ struct urEnqueueMemBufferCopyTestWithParam : uur::urQueueTestWithParam<size_t> {
     if (src_buffer) {
       EXPECT_SUCCESS(urMemRelease(dst_buffer));
     }
-    urQueueTestWithParam::TearDown();
+    urMultiQueueTypeTestWithParam::TearDown();
   }
 
-  const size_t count = std::get<1>(this->GetParam());
+  const size_t count = this->getParam(); //std::get<1>(this->GetParam());
   const size_t size = sizeof(uint32_t) * count;
   ur_mem_handle_t src_buffer = nullptr;
   ur_mem_handle_t dst_buffer = nullptr;

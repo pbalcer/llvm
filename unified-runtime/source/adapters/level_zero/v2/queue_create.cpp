@@ -97,7 +97,7 @@ ur_result_t urQueueCreate(ur_context_handle_t hContext,
   }
 
   // For tests in CI
-  flags |= UR_QUEUE_FLAG_SUBMISSION_BATCHED;
+  // flags |= UR_QUEUE_FLAG_SUBMISSION_BATCHED;
 
   auto zeIndex = v2::getZeIndex(pProperties);
 
