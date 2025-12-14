@@ -510,10 +510,10 @@ template <class T> struct urMultiQueueTypeTestWithParam : urContextTestWithParam
     if (queue) {
       EXPECT_SUCCESS(urQueueRelease(queue));
     }
-    UUR_RETURN_ON_FATAL_FAILURE(urContextTestWithParam<T>::TearDown());
+    UUR_RETURN_ON_FATAL_FAILURE(urContextTestWithParam<MultiQueueParam<T>>::TearDown());
   }
 
-  MultiQueueParam<T> getParamTuple() {
+  MultiQueueParam<T> getParamTuple() const {
     return std::get<1>(urContextTestWithParam<MultiQueueParam<T>>::getParam());
   }  
 
