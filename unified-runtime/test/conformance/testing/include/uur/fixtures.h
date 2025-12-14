@@ -343,7 +343,7 @@ struct urMemImageTest : urContextTest {
       , FIXTURE,                                                               \
       testing::Combine(                                                        \
           ::testing::ValuesIn(uur::DevicesEnvironment::instance->devices),     \
-          VALUES, ::testing::ValuesIn({UR_QUEUE_FLAG_SUBMISSION_BATCHED, (ur_queue_flag_t) 0})),                                                             \
+           testing::Combine(VALUES, ::testing::ValuesIn({UR_QUEUE_FLAG_SUBMISSION_BATCHED, (ur_queue_flag_t) 0}))),                                                             \
       PRINTER)
 
 namespace uur {

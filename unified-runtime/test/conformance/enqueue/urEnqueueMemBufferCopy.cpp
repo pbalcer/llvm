@@ -47,7 +47,7 @@ static std::vector<size_t> test_parameters{1024, 2500, 4096, 6000};
 
 UUR_MULTI_QUEUE_TYPE_TEST_SUITE_WITH_PARAM(urEnqueueMemBufferCopyTestWithParam,
                                  ::testing::ValuesIn(test_parameters),
-                                 uur::deviceTestWithParamPrinter<size_t>);
+                                 uur::multiQueuePrinter<size_t>);
 
 TEST_P(urEnqueueMemBufferCopyTestWithParam, Success) {
   UUR_KNOWN_FAILURE_ON(uur::LevelZero{});
