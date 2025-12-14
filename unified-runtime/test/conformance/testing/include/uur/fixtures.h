@@ -514,7 +514,7 @@ template <class T> struct urMultiQueueTypeTestWithParam : urContextTestWithParam
   }
 
   MultiQueueParam<T> getParamTuple() const {
-    return std::get<1>(urContextTestWithParam<MultiQueueParam<T>>::getParam());
+    return urContextTestWithParam<MultiQueueParam<T>>::getParam();
   }  
 
   const T &getParam() const { return std::get<0>(this->getParamTuple()); }
