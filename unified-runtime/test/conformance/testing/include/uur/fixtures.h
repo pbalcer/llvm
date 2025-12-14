@@ -1264,7 +1264,16 @@ std::string multiQueuePrinter(
   auto queueMode = std::get<1>(paramTuple);
 
   std::stringstream ss;
-  ss << param << "__" << queueMode;
+  ss << param << "__";
+
+  if (queueMode != 0) {
+  // ss << param << "__" << queueMode;
+    ss << queueMode;
+  }
+  else {
+    ss << "UR_QUEUE_SUBMISSION_MODE_IMMEDIATE";
+  }
+  
   return uur::GetPlatformAndDeviceName(device) + "__" +
          GTestSanitizeString(ss.str());
 }
