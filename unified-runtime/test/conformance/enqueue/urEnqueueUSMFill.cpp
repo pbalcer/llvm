@@ -25,15 +25,32 @@ printFillTestString(const testing::TestParamInfo<typename T::ParamType> &info) {
   return test_name.str();
 }
 
+template <typename T>
+inline std::string
+printFillTestStringMultiQueue(const testing::TestParamInfo<typename T::ParamType> &info) {
+  const auto device_handle = std::get<0>(info.param).device;
+  const auto platform_device_name =
+      uur::GetPlatformAndDeviceName(device_handle);
+
+      auto paramTuple = std::get<1>(info.param);
+      auto param = std::get<0>(paramTuple);
+      auto queueMode = std::get<1>(paramTuple);
+  std::stringstream test_name;
+  test_name << platform_device_name << "__size__"
+            << param.size << "__patternSize__"
+            << param.pattern_size << "__" << queueMode;
+  return test_name.str();
+}
+
 struct urEnqueueUSMFillTestWithParam
-    : uur::urQueueTestWithParam<testParametersFill> {
+    : uur::urMultiQueueTypeTestWithParam<testParametersFill> {
 
   void SetUp() override {
-    UUR_RETURN_ON_FATAL_FAILURE(urQueueTestWithParam::SetUp());
+    UUR_RETURN_ON_FATAL_FAILURE(urMultiQueueTypeTestWithParam::SetUp());
 
-    size = std::get<1>(GetParam()).size;
+    size = getParam().size;
     host_mem = std::vector<uint8_t>(size);
-    pattern_size = std::get<1>(GetParam()).pattern_size;
+    pattern_size = getParam().pattern_size;
     pattern = std::vector<uint8_t>(pattern_size);
     uur::generateMemFillPattern(pattern);
 
@@ -52,7 +69,7 @@ struct urEnqueueUSMFillTestWithParam
       EXPECT_SUCCESS(urUSMFree(context, ptr));
     }
 
-    UUR_RETURN_ON_FATAL_FAILURE(urQueueTestWithParam::TearDown());
+    UUR_RETURN_ON_FATAL_FAILURE(urMultiQueueTypeTestWithParam::TearDown());
   }
 
   void verifyData() {
@@ -94,9 +111,9 @@ static std::vector<testParametersFill> test_cases{
     {256, 16},
     {256, 32}};
 
-UUR_DEVICE_TEST_SUITE_WITH_PARAM(
+UUR_MULTI_QUEUE_TYPE_TEST_SUITE_WITH_PARAM(
     urEnqueueUSMFillTestWithParam, testing::ValuesIn(test_cases),
-    printFillTestString<urEnqueueUSMFillTestWithParam>);
+    printFillTestStringMultiQueue<urEnqueueUSMFillTestWithParam>);
 
 TEST_P(urEnqueueUSMFillTestWithParam, Success) {
   // https://github.com/intel/llvm/issues/19604
