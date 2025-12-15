@@ -10,7 +10,8 @@
 #include <uur/known_failure.h>
 
 // struct urEnqueueMemBufferCopyTestWithParam : uur::urQueueTestWithParam<size_t> {
-  struct urEnqueueMemBufferCopyTestWithParam : uur::urMultiQueueTypeTestWithParam<size_t> {
+struct urEnqueueMemBufferCopyTestWithParam
+    : uur::urMultiQueueTypeTestWithParam<size_t> {
 
   void SetUp() override {
     UUR_RETURN_ON_FATAL_FAILURE(urMultiQueueTypeTestWithParam::SetUp());
@@ -47,8 +48,8 @@ static std::vector<size_t> test_parameters{1024, 2500, 4096, 6000};
 //                                  uur::deviceTestWithParamPrinter<size_t>);
 
 UUR_MULTI_QUEUE_TYPE_TEST_SUITE_WITH_PARAM(urEnqueueMemBufferCopyTestWithParam,
-                                 ::testing::ValuesIn(test_parameters),
-                                 uur::multiQueuePrinter<size_t>);
+                                           ::testing::ValuesIn(test_parameters),
+                                           uur::multiQueuePrinter<size_t>);
 
 TEST_P(urEnqueueMemBufferCopyTestWithParam, Success) {
   UUR_KNOWN_FAILURE_ON(uur::LevelZero{});

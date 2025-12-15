@@ -9,6 +9,7 @@
 
 #include "ur_api.h"
 
+#include "gtest/gtest.h"
 #include <uur/checks.h>
 #include <uur/environment.h>
 #include <uur/known_failure.h>
@@ -115,8 +116,9 @@ struct urAllDevicesTest : urPlatformTest {
   std::vector<ur_device_handle_t> devices;
 };
 
-struct urDeviceTest : ::testing::Test,
-                      ::testing::WithParamInterface<std::tuple<DeviceTuple, ur_queue_flag_t>> {
+struct urDeviceTest
+    : ::testing::Test,
+      ::testing::WithParamInterface<std::tuple<DeviceTuple, ur_queue_flag_t>> {
   void SetUp() override {
     auto paramDeviceTuple = std::get<0>(GetParam());
 
@@ -152,10 +154,11 @@ struct urDeviceTest : ::testing::Test,
 #define UUR_INSTANTIATE_DEVICE_TEST_SUITE(FIXTURE)                             \
   INSTANTIATE_TEST_SUITE_P(                                                    \
       , FIXTURE,                                                               \
-      ::testing::ValuesIn(uur::DevicesEnvironment::instance->devices),         \
-      [](const ::testing::TestParamInfo<uur::DeviceTuple> &info) {             \
-        return uur::GetPlatformAndDeviceName(info.param.device);               \
-      })
+      testing::Combine(                                                        \
+          ::testing::ValuesIn(uur::DevicesEnvironment::instance->devices),     \
+          ::testing::ValuesIn(                                                 \
+              {UR_QUEUE_FLAG_SUBMISSION_BATCHED, (ur_queue_flag_t)0})),        \
+      uur::devicePrinter)
 
 namespace uur {
 
@@ -339,13 +342,15 @@ struct urMemImageTest : urContextTest {
           VALUES),                                                             \
       PRINTER)
 
-      // UR_QUEUE_FLAG_SUBMISSION_IMMEDIATE in params
-#define UUR_MULTI_QUEUE_TYPE_TEST_SUITE_WITH_PARAM(FIXTURE, VALUES, PRINTER)             \
+// UR_QUEUE_FLAG_SUBMISSION_IMMEDIATE in params
+#define UUR_MULTI_QUEUE_TYPE_TEST_SUITE_WITH_PARAM(FIXTURE, VALUES, PRINTER)   \
   INSTANTIATE_TEST_SUITE_P(                                                    \
       , FIXTURE,                                                               \
       testing::Combine(                                                        \
           ::testing::ValuesIn(uur::DevicesEnvironment::instance->devices),     \
-           testing::Combine(VALUES, ::testing::ValuesIn({UR_QUEUE_FLAG_SUBMISSION_BATCHED, (ur_queue_flag_t) 0}))),                                                             \
+          testing::Combine(                                                    \
+              VALUES, ::testing::ValuesIn({UR_QUEUE_FLAG_SUBMISSION_BATCHED,   \
+                                           (ur_queue_flag_t)0}))),             \
       PRINTER)
 
 namespace uur {
@@ -425,8 +430,8 @@ struct urMultiQueueTypeTest : urContextTest {
     UUR_RETURN_ON_FATAL_FAILURE(urContextTest::SetUp());
 
     ur_queue_flag_t queueMode = std::get<1>(GetParam());
-    ur_queue_properties_t queue_properties = {UR_STRUCTURE_TYPE_QUEUE_PROPERTIES,
-                                            nullptr, queueMode};
+    ur_queue_properties_t queue_properties = {
+        UR_STRUCTURE_TYPE_QUEUE_PROPERTIES, nullptr, queueMode};
     ASSERT_SUCCESS(urQueueCreate(context, device, &queue_properties, &queue));
     ASSERT_NE(queue, nullptr);
   }
@@ -437,7 +442,6 @@ struct urMultiQueueTypeTest : urContextTest {
     }
     UUR_RETURN_ON_FATAL_FAILURE(urContextTest::TearDown());
   }
-
 
   ur_queue_handle_t queue = nullptr;
 };
@@ -513,18 +517,20 @@ template <class T> struct urQueueTestWithParam : urContextTestWithParam<T> {
   ur_queue_handle_t queue = nullptr;
 };
 
-template <class T> using MultiQueueParam =
-  std::tuple<T, ur_queue_flag_t>;
+template <class T> using MultiQueueParam = std::tuple<T, ur_queue_flag_t>;
 
-template <class T> struct urMultiQueueTypeTestWithParam : urContextTestWithParam<MultiQueueParam<T>> {
+template <class T>
+struct urMultiQueueTypeTestWithParam
+    : urContextTestWithParam<MultiQueueParam<T>> {
   using urContextTestWithParam<MultiQueueParam<T>>::device;
   using urContextTestWithParam<MultiQueueParam<T>>::context;
 
   void SetUp() override {
-    UUR_RETURN_ON_FATAL_FAILURE(urContextTestWithParam<MultiQueueParam<T>>::SetUp());
+    UUR_RETURN_ON_FATAL_FAILURE(
+        urContextTestWithParam<MultiQueueParam<T>>::SetUp());
 
-    ur_queue_properties_t queue_properties = {UR_STRUCTURE_TYPE_QUEUE_PROPERTIES,
-                                            nullptr, this->getQueueFlag()};
+    ur_queue_properties_t queue_properties = {
+        UR_STRUCTURE_TYPE_QUEUE_PROPERTIES, nullptr, this->getQueueFlag()};
 
     ASSERT_SUCCESS(urQueueCreate(context, device, &queue_properties, &queue));
     ASSERT_NE(queue, nullptr);
@@ -534,16 +540,17 @@ template <class T> struct urMultiQueueTypeTestWithParam : urContextTestWithParam
     if (queue) {
       EXPECT_SUCCESS(urQueueRelease(queue));
     }
-    UUR_RETURN_ON_FATAL_FAILURE(urContextTestWithParam<MultiQueueParam<T>>::TearDown());
+    UUR_RETURN_ON_FATAL_FAILURE(
+        urContextTestWithParam<MultiQueueParam<T>>::TearDown());
   }
 
   MultiQueueParam<T> getParamTuple() const {
     return urContextTestWithParam<MultiQueueParam<T>>::getParam();
-  }  
+  }
 
   const T &getParam() const { return std::get<0>(this->getParamTuple()); }
 
-  ur_queue_flag_t getQueueFlag() {return std::get<1>(this->getParamTuple());}
+  ur_queue_flag_t getQueueFlag() { return std::get<1>(this->getParamTuple()); }
 
   ur_queue_handle_t queue = nullptr;
 };
@@ -1280,7 +1287,8 @@ std::string platformTestWithParamPrinter(
 // based on deviceTestWithParamPrinter
 template <class T>
 std::string multiQueuePrinter(
-    const ::testing::TestParamInfo<std::tuple<DeviceTuple, MultiQueueParam<T>>> &info) {
+    const ::testing::TestParamInfo<std::tuple<DeviceTuple, MultiQueueParam<T>>>
+        &info) {
   auto device = std::get<0>(info.param).device;
   auto paramTuple = std::get<1>(info.param);
 
@@ -1291,13 +1299,28 @@ std::string multiQueuePrinter(
   ss << param << "__";
 
   if (queueMode != 0) {
-  // ss << param << "__" << queueMode;
+    // ss << param << "__" << queueMode;
     ss << queueMode;
-  }
-  else {
+  } else {
     ss << "UR_QUEUE_SUBMISSION_MODE_IMMEDIATE";
   }
-  
+
+  return uur::GetPlatformAndDeviceName(device) + "__" +
+         GTestSanitizeString(ss.str());
+}
+
+std::string
+devicePrinter(const ::testing::TestParamInfo<
+              std::tuple<uur::DeviceTuple, ur_queue_flag_t>> &info) {
+  auto device = std::get<0>(info.param).device;
+  auto queueMode = std::get<1>(info.param);
+  std::stringstream ss;
+
+  if (queueMode == 0) {
+    ss << "UR_QUEUE_SUBMISSION_MODE_IMMEDIATE";
+  } else {
+    ss << queueMode;
+  }
   return uur::GetPlatformAndDeviceName(device) + "__" +
          GTestSanitizeString(ss.str());
 }
