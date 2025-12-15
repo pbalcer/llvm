@@ -31,10 +31,29 @@ inline std::string printFill2DTestString(
   return test_name.str();
 }
 
+template <typename T>
+inline std::string printFill2DTestStringMultiQueue(
+    const testing::TestParamInfo<typename T::ParamType> &info) {
+  const auto device_handle = std::get<0>(info.param).device;
+  const auto platform_device_name =
+      uur::GetPlatformAndDeviceName(device_handle);
+      auto paramTuple = std::get<1>(info.param);
+      auto param = std::get<0>(paramTuple);
+      auto queueMode = std::get<1>(paramTuple);
+
+  std::stringstream test_name;
+  test_name << platform_device_name << "__pitch__"
+            << param.pitch << "__width__"
+            << param.width << "__height__"
+            << param.height << "__patternSize__"
+            << param.pattern_size << "__" << queueMode;
+  return test_name.str();
+}
+
 struct urEnqueueUSMFill2DTestWithParam
-    : uur::urQueueTestWithParam<testParametersFill2D> {
+    : uur::urMultiQueueTypeTestWithParam<testParametersFill2D> {
   void SetUp() override {
-    UUR_RETURN_ON_FATAL_FAILURE(urQueueTestWithParam::SetUp());
+    UUR_RETURN_ON_FATAL_FAILURE(urMultiQueueTypeTestWithParam::SetUp());
 
     bool memfill2d_support = false;
     ASSERT_SUCCESS(urContextGetInfo(context, UR_CONTEXT_INFO_USM_FILL2D_SUPPORT,
@@ -44,10 +63,10 @@ struct urEnqueueUSMFill2DTestWithParam
       GTEST_SKIP() << "2D USM mem fill is not supported";
     }
 
-    pitch = std::get<1>(GetParam()).pitch;
-    width = std::get<1>(GetParam()).width;
-    height = std::get<1>(GetParam()).height;
-    pattern_size = std::get<1>(GetParam()).pattern_size;
+    pitch = getParam().pitch;
+    width = getParam().width;
+    height = getParam().height;
+    pattern_size = getParam().pattern_size;
     pattern = std::vector<uint8_t>(pattern_size);
     uur::generateMemFillPattern(pattern);
     allocation_size = pitch * height;
@@ -68,7 +87,7 @@ struct urEnqueueUSMFill2DTestWithParam
       EXPECT_SUCCESS(urUSMFree(context, ptr));
     }
 
-    UUR_RETURN_ON_FATAL_FAILURE(urQueueTestWithParam::TearDown());
+    UUR_RETURN_ON_FATAL_FAILURE(urMultiQueueTypeTestWithParam::TearDown());
   }
 
   void verifyData() {
@@ -128,9 +147,9 @@ static std::vector<testParametersFill2D> test_cases{
     /* Height != power_of_2 && width == power_of_2 && pattern_size == 128 */
     {1024, 256, 35, 128}};
 
-UUR_DEVICE_TEST_SUITE_WITH_PARAM(
+UUR_MULTI_QUEUE_TYPE_TEST_SUITE_WITH_PARAM(
     urEnqueueUSMFill2DTestWithParam, testing::ValuesIn(test_cases),
-    printFill2DTestString<urEnqueueUSMFill2DTestWithParam>);
+    printFill2DTestStringMultiQueue<urEnqueueUSMFill2DTestWithParam>);
 
 TEST_P(urEnqueueUSMFill2DTestWithParam, Success) {
 
