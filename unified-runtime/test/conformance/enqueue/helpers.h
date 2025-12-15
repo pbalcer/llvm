@@ -7,6 +7,7 @@
 #ifndef UUR_ENQUEUE_RECT_HELPERS_H_INCLUDED
 #define UUR_ENQUEUE_RECT_HELPERS_H_INCLUDED
 
+#include "ur_api.h"
 #include <cstring>
 #include <uur/fixtures.h>
 
@@ -154,6 +155,22 @@ printFillTestString(const testing::TestParamInfo<typename T::ParamType> &info) {
   test_name << platform_device_name << "__size__"
             << std::get<1>(info.param).size << "__patternSize__"
             << std::get<1>(info.param).pattern_size;
+  return test_name.str();
+}
+
+template <typename T>
+inline std::string
+printFillTestStringMultiQueueType(const testing::TestParamInfo<typename T::ParamType> &info) {
+  const auto device_handle = std::get<0>(info.param).device;
+  const auto platform_device_name =
+      uur::GetPlatformAndDeviceName(device_handle);
+  auto paramTuple = std::get<1>(info.param);
+  auto param = std::get<0>(paramTuple);
+
+  std::stringstream test_name;
+  test_name << platform_device_name << "__size__"
+            << param.size << "__patternSize__"
+            << param.pattern_size;
   return test_name.str();
 }
 
