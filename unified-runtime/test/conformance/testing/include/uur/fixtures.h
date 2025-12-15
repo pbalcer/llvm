@@ -158,6 +158,16 @@ struct urDeviceTest
       , FIXTURE,                                                               \
       testing::Combine(                                                        \
           ::testing::ValuesIn(uur::DevicesEnvironment::instance->devices),     \
+          ::testing::Values(0)),        \
+      [](const ::testing::TestParamInfo<std::tuple<uur::DeviceTuple, ur_queue_flag_t>> &info) {             \
+        return uur::GetPlatformAndDeviceName(std::get<0>(info.param).device);               \
+      })
+
+#define UUR_INSTANTIATE_DEVICE_TEST_SUITE_MULTI_QUEUE(FIXTURE)                             \
+  INSTANTIATE_TEST_SUITE_P(                                                    \
+      , FIXTURE,                                                               \
+      testing::Combine(                                                        \
+          ::testing::ValuesIn(uur::DevicesEnvironment::instance->devices),     \
           ::testing::ValuesIn(                                                 \
               {UR_QUEUE_FLAG_SUBMISSION_BATCHED, (ur_queue_flag_t)0})),        \
       uur::devicePrinter)
@@ -1311,7 +1321,7 @@ std::string multiQueuePrinter(
          GTestSanitizeString(ss.str());
 }
 
-std::string
+inline std::string
 devicePrinter(const ::testing::TestParamInfo<
               std::tuple<uur::DeviceTuple, ur_queue_flag_t>> &info) {
   auto device = std::get<0>(info.param).device;
