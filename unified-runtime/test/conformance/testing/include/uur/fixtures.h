@@ -137,6 +137,8 @@ struct urDeviceTest
 };
 } // namespace uur
 
+inline ur_queue_flag_t queueModes[2] = {UR_QUEUE_FLAG_SUBMISSION_BATCHED, UR_QUEUE_FLAG_SUBMISSION_IMMEDIATE};
+
 #define UUR_INSTANTIATE_ADAPTER_TEST_SUITE(FIXTURE)                            \
   INSTANTIATE_TEST_SUITE_P(                                                    \
       , FIXTURE,                                                               \
@@ -168,8 +170,7 @@ struct urDeviceTest
       , FIXTURE,                                                               \
       testing::Combine(                                                        \
           ::testing::ValuesIn(uur::DevicesEnvironment::instance->devices),     \
-          ::testing::ValuesIn(                                                 \
-              {UR_QUEUE_FLAG_SUBMISSION_BATCHED, (ur_queue_flag_t)0})),        \
+          ::testing::ValuesIn(queueModes)),        \
       uur::devicePrinter)
 
 namespace uur {
@@ -361,8 +362,7 @@ struct urMemImageTest : urContextTest {
       testing::Combine(                                                        \
           ::testing::ValuesIn(uur::DevicesEnvironment::instance->devices),     \
           testing::Combine(                                                    \
-              VALUES, ::testing::ValuesIn({UR_QUEUE_FLAG_SUBMISSION_BATCHED,   \
-                                           (ur_queue_flag_t)0}))),             \
+              VALUES, ::testing::ValuesIn(queueModes))),             \
       PRINTER)
 
 namespace uur {
