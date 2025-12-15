@@ -116,11 +116,13 @@ struct urAllDevicesTest : urPlatformTest {
 };
 
 struct urDeviceTest : ::testing::Test,
-                      ::testing::WithParamInterface<DeviceTuple> {
+                      ::testing::WithParamInterface<std::tuple<DeviceTuple, ur_queue_flag_t>> {
   void SetUp() override {
-    device = GetParam().device;
-    platform = GetParam().platform;
-    adapter = GetParam().adapter;
+    auto paramDeviceTuple = std::get<0>(GetParam());
+
+    device = paramDeviceTuple.device;
+    platform = paramDeviceTuple.platform;
+    adapter = paramDeviceTuple.adapter;
 
     UUR_RETURN_ON_FATAL_FAILURE(checkBlacklisted(platform));
   }
@@ -415,6 +417,28 @@ struct urQueueTest : urContextTest {
 
   ur_queue_properties_t queue_properties = {UR_STRUCTURE_TYPE_QUEUE_PROPERTIES,
                                             nullptr, 0};
+  ur_queue_handle_t queue = nullptr;
+};
+
+struct urMultiQueueTypeTest : urContextTest {
+  void SetUp() override {
+    UUR_RETURN_ON_FATAL_FAILURE(urContextTest::SetUp());
+
+    ur_queue_flag_t queueMode = std::get<1>(GetParam());
+    ur_queue_properties_t queue_properties = {UR_STRUCTURE_TYPE_QUEUE_PROPERTIES,
+                                            nullptr, queueMode};
+    ASSERT_SUCCESS(urQueueCreate(context, device, &queue_properties, &queue));
+    ASSERT_NE(queue, nullptr);
+  }
+
+  void TearDown() override {
+    if (queue) {
+      EXPECT_SUCCESS(urQueueRelease(queue));
+    }
+    UUR_RETURN_ON_FATAL_FAILURE(urContextTest::TearDown());
+  }
+
+
   ur_queue_handle_t queue = nullptr;
 };
 
