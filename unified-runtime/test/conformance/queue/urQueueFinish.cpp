@@ -7,8 +7,8 @@
 #include "uur/fixtures.h"
 #include "uur/raii.h"
 
-using urQueueFinishTest = uur::urQueueTest;
-UUR_INSTANTIATE_DEVICE_TEST_SUITE(urQueueFinishTest);
+using urQueueFinishTest = uur::urMultiQueueTypeTest;
+UUR_INSTANTIATE_DEVICE_TEST_SUITE_MULTI_QUEUE(urQueueFinishTest);
 
 TEST_P(urQueueFinishTest, Success) {
   constexpr size_t buffer_size = 1024;
