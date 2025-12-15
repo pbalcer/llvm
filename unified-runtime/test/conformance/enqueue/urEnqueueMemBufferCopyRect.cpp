@@ -4,6 +4,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 #include "helpers.h"
+#include "uur/fixtures.h"
 #include "uur/known_failure.h"
 #include <numeric>
 
@@ -70,12 +71,12 @@ static std::vector<uur::test_parameters_t> generateParameterizations() {
 }
 
 struct urEnqueueMemBufferCopyRectTestWithParam
-    : public uur::urQueueTestWithParam<uur::test_parameters_t> {};
+    : public uur::urMultiQueueTypeTestWithParam<uur::test_parameters_t> {};
 
-UUR_DEVICE_TEST_SUITE_WITH_PARAM(
+UUR_MULTI_QUEUE_TYPE_TEST_SUITE_WITH_PARAM(
     urEnqueueMemBufferCopyRectTestWithParam,
     testing::ValuesIn(generateParameterizations()),
-    uur::printRectTestString<urEnqueueMemBufferCopyRectTestWithParam>);
+    uur::printRectTestStringMultiQueue<urEnqueueMemBufferCopyRectTestWithParam>);
 
 TEST_P(urEnqueueMemBufferCopyRectTestWithParam, Success) {
   const auto name = getParam().name;

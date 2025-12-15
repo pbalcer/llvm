@@ -36,6 +36,25 @@ printRectTestString(const testing::TestParamInfo<typename T::ParamType> &info) {
   return platform_device_name + "__" + test_name;
 }
 
+template <typename T>
+inline std::string
+printRectTestStringMultiQueue(const testing::TestParamInfo<typename T::ParamType> &info) {
+  // ParamType will be std::tuple<ur_device_handle_t, test_parameters_t>
+  const auto device_handle = std::get<0>(info.param).device;
+  const auto platform_device_name = GetPlatformAndDeviceName(device_handle);
+  auto paramTuple = std::get<1>(info.param);
+  auto param = std::get<0>(paramTuple);
+
+  auto queueMode = std::get<1>(paramTuple);
+
+  std::stringstream test_name;
+  test_name << platform_device_name;
+  test_name << param.name << "__" << queueMode;
+
+  return test_name.str();
+  // return platform_device_name + "__" + test_name;
+}
+
 // Performs host side equivalent of urEnqueueMemBufferReadRect,
 // urEnqueueMemBufferWriteRect and urEnqueueMemBufferCopyRect.
 inline void copyRect(std::vector<uint8_t> src, ur_rect_offset_t src_offset,
