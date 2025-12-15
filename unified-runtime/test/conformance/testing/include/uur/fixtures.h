@@ -129,7 +129,7 @@ struct urDeviceTest
     UUR_RETURN_ON_FATAL_FAILURE(checkBlacklisted(platform));
   }
 
-  const DeviceTuple& getParam() { return std::get<0>(GetParam());}
+  const DeviceTuple &getParam() { return std::get<0>(GetParam()); }
 
   ur_device_handle_t device = nullptr;
   ur_platform_handle_t platform = nullptr;
@@ -137,7 +137,8 @@ struct urDeviceTest
 };
 } // namespace uur
 
-inline ur_queue_flag_t queueModes[2] = {UR_QUEUE_FLAG_SUBMISSION_BATCHED, UR_QUEUE_FLAG_SUBMISSION_IMMEDIATE};
+inline ur_queue_flag_t queueModes[2] = {UR_QUEUE_FLAG_SUBMISSION_BATCHED,
+                                        UR_QUEUE_FLAG_SUBMISSION_IMMEDIATE};
 
 #define UUR_INSTANTIATE_ADAPTER_TEST_SUITE(FIXTURE)                            \
   INSTANTIATE_TEST_SUITE_P(                                                    \
@@ -160,17 +161,18 @@ inline ur_queue_flag_t queueModes[2] = {UR_QUEUE_FLAG_SUBMISSION_BATCHED, UR_QUE
       , FIXTURE,                                                               \
       testing::Combine(                                                        \
           ::testing::ValuesIn(uur::DevicesEnvironment::instance->devices),     \
-          ::testing::Values(0)),        \
-      [](const ::testing::TestParamInfo<std::tuple<uur::DeviceTuple, ur_queue_flag_t>> &info) {             \
-        return uur::GetPlatformAndDeviceName(std::get<0>(info.param).device);               \
+          ::testing::Values(0)),                                               \
+      [](const ::testing::TestParamInfo<                                       \
+          std::tuple<uur::DeviceTuple, ur_queue_flag_t>> &info) {              \
+        return uur::GetPlatformAndDeviceName(std::get<0>(info.param).device);  \
       })
 
-#define UUR_INSTANTIATE_DEVICE_TEST_SUITE_MULTI_QUEUE(FIXTURE)                             \
+#define UUR_INSTANTIATE_DEVICE_TEST_SUITE_MULTI_QUEUE(FIXTURE)                 \
   INSTANTIATE_TEST_SUITE_P(                                                    \
       , FIXTURE,                                                               \
       testing::Combine(                                                        \
           ::testing::ValuesIn(uur::DevicesEnvironment::instance->devices),     \
-          ::testing::ValuesIn(queueModes)),        \
+          ::testing::ValuesIn(queueModes)),                                    \
       uur::devicePrinter)
 
 namespace uur {
@@ -361,8 +363,7 @@ struct urMemImageTest : urContextTest {
       , FIXTURE,                                                               \
       testing::Combine(                                                        \
           ::testing::ValuesIn(uur::DevicesEnvironment::instance->devices),     \
-          testing::Combine(                                                    \
-              VALUES, ::testing::ValuesIn(queueModes))),             \
+          testing::Combine(VALUES, ::testing::ValuesIn(queueModes))),          \
       PRINTER)
 
 namespace uur {
@@ -1321,8 +1322,8 @@ devicePrinter(const ::testing::TestParamInfo<
   auto queueMode = std::get<1>(info.param);
   std::stringstream ss;
 
-    ss << queueMode;
-    
+  ss << queueMode;
+
   return uur::GetPlatformAndDeviceName(device) + "__" +
          GTestSanitizeString(ss.str());
 }

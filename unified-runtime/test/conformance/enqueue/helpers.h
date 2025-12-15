@@ -37,8 +37,8 @@ printRectTestString(const testing::TestParamInfo<typename T::ParamType> &info) {
 }
 
 template <typename T>
-inline std::string
-printRectTestStringMultiQueue(const testing::TestParamInfo<typename T::ParamType> &info) {
+inline std::string printRectTestStringMultiQueue(
+    const testing::TestParamInfo<typename T::ParamType> &info) {
   // ParamType will be std::tuple<ur_device_handle_t, test_parameters_t>
   const auto device_handle = std::get<0>(info.param).device;
   const auto platform_device_name = GetPlatformAndDeviceName(device_handle);
@@ -178,8 +178,8 @@ printFillTestString(const testing::TestParamInfo<typename T::ParamType> &info) {
 }
 
 template <typename T>
-inline std::string
-printFillTestStringMultiQueueType(const testing::TestParamInfo<typename T::ParamType> &info) {
+inline std::string printFillTestStringMultiQueueType(
+    const testing::TestParamInfo<typename T::ParamType> &info) {
   const auto device_handle = std::get<0>(info.param).device;
   const auto platform_device_name =
       uur::GetPlatformAndDeviceName(device_handle);
@@ -189,17 +189,15 @@ printFillTestStringMultiQueueType(const testing::TestParamInfo<typename T::Param
   auto queueMode = std::get<1>(paramTuple);
 
   std::stringstream test_name;
-  test_name << platform_device_name << "__size__"
-            << param.size << "__patternSize__"
-            << param.pattern_size << "__";
+  test_name << platform_device_name << "__size__" << param.size
+            << "__patternSize__" << param.pattern_size << "__";
 
   if (queueMode == 0) {
     test_name << "UR_QUEUE_SUBMISSION_MODE_IMMEDIATE";
-  }
-  else {
+  } else {
     test_name << queueMode;
   }
-  
+
   return test_name.str();
 }
 
