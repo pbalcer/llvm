@@ -3,11 +3,12 @@
 // Exceptions. See LICENSE.TXT
 //
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+#include <sstream>
 #include <uur/fixtures.h>
 #include <uur/known_failure.h>
 
 struct urEnqueueMemImageCopyTest
-    : public uur::urQueueTestWithParam<ur_mem_type_t> {
+    : public uur::urMultiQueueTypeTestWithParam<ur_mem_type_t> {
   // Helper type so element offset calculations work the same as pixel offsets
   struct rgba_pixel {
     uint32_t data[4];
@@ -15,7 +16,7 @@ struct urEnqueueMemImageCopyTest
   void SetUp() override {
     UUR_KNOWN_FAILURE_ON(uur::NativeCPU{});
 
-    UUR_RETURN_ON_FATAL_FAILURE(urQueueTestWithParam::SetUp());
+    UUR_RETURN_ON_FATAL_FAILURE(urMultiQueueTypeTestWithParam::SetUp());
 
     ur_bool_t imageSupported;
     ASSERT_SUCCESS(urDeviceGetInfo(this->device, UR_DEVICE_INFO_IMAGE_SUPPORT,
@@ -80,7 +81,7 @@ struct urEnqueueMemImageCopyTest
     if (dstImage) {
       EXPECT_SUCCESS(urMemRelease(dstImage));
     }
-    UUR_RETURN_ON_FATAL_FAILURE(urQueueTestWithParam::TearDown());
+    UUR_RETURN_ON_FATAL_FAILURE(urMultiQueueTypeTestWithParam::TearDown());
   }
 
   const size_t width = 32;
@@ -122,11 +123,32 @@ inline std::string printImageCopyTestString(
   return platform_device_name + "__" + test_name;
 }
 
-UUR_DEVICE_TEST_SUITE_WITH_PARAM(
+template <typename T>
+inline std::string printImageCopyTestStringMultiQueue(
+    const testing::TestParamInfo<typename T::ParamType> &info) {
+  // ParamType will be std::tuple<ur_device_handle_t, ur_mem_type_t>
+  const auto device_handle = std::get<0>(info.param).device;
+  const auto platform_device_name =
+      uur::GetPlatformAndDeviceName(device_handle);
+
+  auto paramTuple = std::get<1>(info.param);
+  const auto image_type = std::get<0>(paramTuple); //std::get<1>(info.param);
+  const auto queue_mode = std::get<1>(paramTuple);
+  auto test_name = (image_type == UR_MEM_TYPE_IMAGE1D)   ? "1D"
+                   : (image_type == UR_MEM_TYPE_IMAGE2D) ? "2D"
+                                                         : "3D";
+  std::stringstream ss;
+  ss << platform_device_name << "__" << test_name << "__" << queue_mode;
+
+  return ss.str();
+  // return platform_device_name + "__" + test_name + "__" //+ queue_mode;
+}
+
+UUR_MULTI_QUEUE_TYPE_TEST_SUITE_WITH_PARAM(
     urEnqueueMemImageCopyTest,
     testing::ValuesIn({UR_MEM_TYPE_IMAGE1D, UR_MEM_TYPE_IMAGE2D,
                        UR_MEM_TYPE_IMAGE3D}),
-    printImageCopyTestString<urEnqueueMemImageCopyTest>);
+    printImageCopyTestStringMultiQueue<urEnqueueMemImageCopyTest>);
 
 TEST_P(urEnqueueMemImageCopyTest, Success) {
   UUR_KNOWN_FAILURE_ON(uur::LevelZero{}, uur::LevelZeroV2{});
