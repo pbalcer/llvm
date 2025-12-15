@@ -167,10 +167,20 @@ printFillTestStringMultiQueueType(const testing::TestParamInfo<typename T::Param
   auto paramTuple = std::get<1>(info.param);
   auto param = std::get<0>(paramTuple);
 
+  auto queueMode = std::get<1>(paramTuple);
+
   std::stringstream test_name;
   test_name << platform_device_name << "__size__"
             << param.size << "__patternSize__"
-            << param.pattern_size;
+            << param.pattern_size << "__";
+
+  if (queueMode == 0) {
+    test_name << "UR_QUEUE_SUBMISSION_MODE_IMMEDIATE";
+  }
+  else {
+    test_name << queueMode;
+  }
+  
   return test_name.str();
 }
 
