@@ -129,6 +129,8 @@ struct urDeviceTest
     UUR_RETURN_ON_FATAL_FAILURE(checkBlacklisted(platform));
   }
 
+  const DeviceTuple& getParam() { return std::get<0>(GetParam());}
+
   ur_device_handle_t device = nullptr;
   ur_platform_handle_t platform = nullptr;
   ur_adapter_handle_t adapter = nullptr;

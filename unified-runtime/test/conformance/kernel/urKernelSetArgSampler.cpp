@@ -86,7 +86,7 @@ struct urKernelSetArgSamplerTest : uur::urBaseKernelTest {
     // the non-existant image_copy kernel)
     bool image_support = false;
     ASSERT_SUCCESS(
-        uur::GetDeviceImageSupport(GetParam().device, image_support));
+        uur::GetDeviceImageSupport(getParam().device, image_support));
     if (!image_support) {
       GTEST_SKIP() << "Device doesn't support images";
     }
