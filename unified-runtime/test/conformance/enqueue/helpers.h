@@ -94,15 +94,30 @@ print2DTestString(const testing::TestParamInfo<typename T::ParamType> &info) {
   const auto platform_device_name =
       uur::GetPlatformAndDeviceName(device_handle);
   std::stringstream test_name;
-  const auto src_kind = std::get<1>(std::get<1>(info.param));
-  const auto dst_kind = std::get<2>(std::get<1>(info.param));
+
+  // std::tuple<std::tuple<uur::TestParameters2D, ur_usm_type_t, ur_usm_type_t>, ur_queue_flag_t>
+  auto paramTuple = std::get<1>(info.param);
+  // std::tuple<std::tuple<uur::TestParameters2D, ur_usm_type_t, ur_usm_type_t>, ur_queue_flag_t>
+  auto param = std::get<0>(paramTuple);
+  // ur_queue_flag_t
+  auto queueMode = std::get<1>(paramTuple);
+  const auto src_kind = std::get<1>(param);  //(std::get<1>(info.param));
+  const auto dst_kind = std::get<2>(param);  //(std::get<1>(info.param));
+  TestParameters2D testParams = std::get<0>(param);
   test_name << platform_device_name << "__pitch__"
-            << std::get<0>(std::get<1>(info.param)).pitch << "__width__"
-            << std::get<0>(std::get<1>(info.param)).width << "__height__"
-            << std::get<0>(std::get<1>(info.param)).height << "__src__"
-            << src_kind << "__dst__" << dst_kind;
+  << testParams.pitch << "__width__"
+            << testParams.width << "__height__"
+            << testParams.height << "__src__"
+            << src_kind << "__dst__" << dst_kind
+            << "__" << queueMode;
+            // << std::get<0>(std::get<1>(info.param)).pitch << "__width__"
+            // << std::get<0>(std::get<1>(info.param)).width << "__height__"
+            // << std::get<0>(std::get<1>(info.param)).height << "__src__"
+            // << src_kind << "__dst__" << dst_kind;
   return test_name.str();
 }
+
+// ‘std::__tuple_element_t<0, std::tuple<std::tuple<uur::TestParameters2D, ur_usm_type_t, ur_usm_type_t>, ur_queue_flag_t> >’ {aka ‘const class std::tuple<uur::TestParameters2D, ur_usm_type_t, ur_usm_type_t>’}
 
 struct mem_buffer_test_parameters_t {
   size_t count;
