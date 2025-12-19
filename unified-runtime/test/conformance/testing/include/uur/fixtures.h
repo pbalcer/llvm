@@ -359,12 +359,7 @@ struct urMemImageTest : urContextTest {
 
 // UR_QUEUE_FLAG_SUBMISSION_IMMEDIATE in params
 #define UUR_MULTI_QUEUE_TYPE_TEST_SUITE_WITH_PARAM(FIXTURE, VALUES, PRINTER)   \
-  INSTANTIATE_TEST_SUITE_P(                                                    \
-      , FIXTURE,                                                               \
-      testing::Combine(                                                        \
-          ::testing::ValuesIn(uur::DevicesEnvironment::instance->devices),     \
-          testing::Combine(VALUES, ::testing::ValuesIn(queueModes))),          \
-      PRINTER)
+  UUR_DEVICE_TEST_SUITE_WITH_PARAM(FIXTURE, testing::Combine(VALUES, ::testing::ValuesIn(queueModes)), PRINTER)
 
 namespace uur {
 
