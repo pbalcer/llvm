@@ -406,6 +406,23 @@ install(
         ${PROJECT_BINARY_DIR}/cmake/${PROJECT_NAME}-config-version.cmake
     DESTINATION lib/cmake/${PROJECT_NAME})
 
+set(CPACK_GENERATOR "DEB")
+
+set(CPACK_PACKAGE_NAME "unified-runtime-level-zero-adapter")
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+set(CPACK_DEBIAN_PACKAGE_SECTION "libs")
+set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+set(CPACK_PACKAGE_CONTACT "rafal.rudnicki@intel.com")
+
+# Auto-compute shared library dependencies via dpkg-shlibdeps
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+
+# Only include the component with our CUDA adapter .so
+set(CPACK_DEB_COMPONENT_INSTALL ON)
+#set(CPACK_COMPONENTS_ALL ur_adapter_cuda)
+
+include(CPack)
+
 set(API_JSON_FILE ${PROJECT_BINARY_DIR}/unified_runtime.json)
 
 if(UR_FORMAT_CPP_STYLE)
