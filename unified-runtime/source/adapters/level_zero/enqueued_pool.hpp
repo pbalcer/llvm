@@ -27,7 +27,6 @@ public:
     // This can either be a `ur_queue_handle_t` or a pointer to a v2 queue
     // object.
     void *Queue;
-    size_t Alignment;
   };
 
   using event_release_callback_t = ur_result_t (*)(ur_event_handle_t);
@@ -45,43 +44,21 @@ public:
   bool cleanup();
   bool cleanupForQueue(void *Queue);
 
-  // Allocations are grouped by queue and alignment.
-  struct AllocationGroupKey {
-    void *Queue;
-    size_t Alignment;
-  };
-
-  struct GroupComparator {
-    bool operator()(const AllocationGroupKey &lhs,
-                    const AllocationGroupKey &rhs) const {
-      if (lhs.Queue != rhs.Queue) {
-        return lhs.Queue < rhs.Queue;
-      }
-      return lhs.Alignment < rhs.Alignment;
-    }
-  };
-
-  // Then, the allocations are sorted by size.
-  struct SizeComparator {
+  struct Comparator {
     bool operator()(const Allocation &lhs, const Allocation &rhs) const {
-      if (lhs.Size != rhs.Size) {
-        return lhs.Size < rhs.Size;
+      if (lhs.Queue != rhs.Queue) {
+        return lhs.Queue < rhs.Queue; // Compare by queue handle first
       }
-      return lhs.Ptr < rhs.Ptr;
+      if (lhs.Size != rhs.Size) {
+        return lhs.Size < rhs.Size; // Then by size
+      }
+      return lhs.Ptr < rhs.Ptr; // Finally by pointer address
     }
   };
 
-  using AllocationGroup = std::set<Allocation, SizeComparator>;
-  using AllocationGroupMap =
-      std::map<AllocationGroupKey, AllocationGroup, GroupComparator>;
-
-private:
+  using AllocationSet = std::set<Allocation, Comparator>;
   ur_mutex Mutex;
-
-  // Freelist grouped by queue and alignment.
-  AllocationGroupMap FreelistByQueue;
-  // Freelist grouped by alignment only.
-  AllocationGroupMap FreelistGlobal;
+  AllocationSet Freelist;
 
   event_release_callback_t EventReleaseFn;
   memory_free_callback_t MemFreeFn;
