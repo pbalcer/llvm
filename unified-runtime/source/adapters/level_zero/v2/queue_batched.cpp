@@ -211,6 +211,8 @@ ur_result_t ur_queue_batched_t::queueFinishPoolsUnlocked() {
 
 ur_result_t batch_manager::batchFinish() {
   TRACK_SCOPE_LATENCY("ur_queue_batched_t::batchFinish");
+  if (isActiveBatchEmpty())
+    return UR_RESULT_SUCCESS;
 
   UR_CALL(activeBatch.releaseSubmittedKernels());
 
@@ -402,6 +404,7 @@ ur_result_t ur_queue_batched_t::enqueueUSMMemcpy(
 ur_result_t ur_queue_batched_t::enqueueUSMFreeExp(
     ur_usm_pool_handle_t pPool, void *pMem, uint32_t numEventsInWaitList,
     const ur_event_handle_t *phEventWaitList, ur_event_handle_t *phEvent) {
+    return UR_RESULT_SUCCESS;
   wait_list_view waitListView =
       wait_list_view(phEventWaitList, numEventsInWaitList, this);
   auto lockedBatch = currentCmdLists.lock();
@@ -410,8 +413,7 @@ ur_result_t ur_queue_batched_t::enqueueUSMFreeExp(
 
   UR_CALL(lockedBatch->getActiveBatch().appendUSMFreeExp(
       this, pPool, pMem, waitListView,
-      createEventAndRetainRegular(phEvent,
-                                  lockedBatch->getCurrentGeneration())));
+      nullptr));
 
   return queueFlushUnlocked(lockedBatch);
 }

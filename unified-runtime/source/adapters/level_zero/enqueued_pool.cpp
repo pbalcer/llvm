@@ -71,14 +71,15 @@ EnqueuedPool::getBestFit(size_t Size, size_t Alignment, void *Queue) {
     removeFromFreelist(*BestFit, FreelistGlobal, true);
     return BestFit;
   }
-
-  // If no fit was found in the queue-specific freelist, try the global
-  // freelist.
-  BestFit = getBestFitHelper(Size, Alignment, nullptr, FreelistGlobal);
-  if (BestFit) {
-    // Remove the allocation from the queue-specific freelist.
-    removeFromFreelist(*BestFit, FreelistByQueue, false);
-    return BestFit;
+  if (0) {
+    // If no fit was found in the queue-specific freelist, try the global
+    // freelist.
+    BestFit = getBestFitHelper(Size, Alignment, nullptr, FreelistGlobal);
+    if (BestFit) {
+        // Remove the allocation from the queue-specific freelist.
+        removeFromFreelist(*BestFit, FreelistByQueue, false);
+        return BestFit;
+    }
   }
 
   return std::nullopt;

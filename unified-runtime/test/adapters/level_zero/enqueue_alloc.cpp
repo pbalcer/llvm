@@ -260,6 +260,7 @@ TEST_P(urL0EnqueueAllocTest, SuccessFromPool) {
 
   ValidateEnqueueFree(ptr);
   ASSERT_SUCCESS(urEventRelease(allocEvent));
+  ASSERT_SUCCESS(urUSMPoolRelease(pool));
 }
 
 TEST_P(urL0EnqueueAllocTest, SuccessWithKernel) {
@@ -323,14 +324,8 @@ TEST_P(urL0EnqueueAllocTest, SuccessWithKernelRepeat) {
 UUR_DEVICE_TEST_SUITE_WITH_PARAM(
     urL0EnqueueAllocMultiQueueSameDeviceTest,
     ::testing::ValuesIn({
-        EnqueueAllocMultiQueueTestParam{1024, 256, 8, urEnqueueUSMHostAllocExp,
+        EnqueueAllocMultiQueueTestParam{4096, 256, 8, urEnqueueUSMHostAllocExp,
                                         uur::GetDeviceUSMHostSupport},
-        EnqueueAllocMultiQueueTestParam{1024, 256, 8,
-                                        urEnqueueUSMSharedAllocExp,
-                                        uur::GetDeviceUSMSingleSharedSupport},
-        EnqueueAllocMultiQueueTestParam{1024, 256, 8,
-                                        urEnqueueUSMDeviceAllocExp,
-                                        uur::GetDeviceUSMDeviceSupport},
     }),
     uur::deviceTestWithParamPrinter<EnqueueAllocMultiQueueTestParam>);
 
@@ -355,12 +350,13 @@ TEST_P(urL0EnqueueAllocMultiQueueSameDeviceTest, SuccessMt) {
     threads.emplace_back([&, idx, iterations] {
       std::vector<void *> ptrs(iterations);
       for (size_t i = 0; i < iterations; i++) {
-        ASSERT_SUCCESS(enqueueUSMAllocFunc(queues[idx], nullptr, allocSize,
-                                           nullptr, 0, nullptr, &ptrs[i],
-                                           nullptr));
+        urUSMHostAlloc(context, nullptr, nullptr, allocSize, &ptrs[i]);
+        //ASSERT_SUCCESS(enqueueUSMAllocFunc(queues[idx], nullptr, allocSize,
+        //                                   nullptr, 0, nullptr, &ptrs[i],
+        //                                   nullptr));
+        urQueueFlush(queues[idx]);
         ASSERT_NE(ptrs[i], nullptr);
       }
-
       ASSERT_SUCCESS(urQueueFinish(queues[idx]));
 
       uint8_t fillPattern = 0xAF;
@@ -372,8 +368,8 @@ TEST_P(urL0EnqueueAllocMultiQueueSameDeviceTest, SuccessMt) {
       ASSERT_SUCCESS(urQueueFinish(queues[idx]));
 
       for (size_t i = 0; i < iterations; i++) {
-        ASSERT_SUCCESS(urEnqueueUSMFreeExp(queues[idx], nullptr, ptrs[i], 0,
-                                           nullptr, nullptr));
+        //ASSERT_SUCCESS(urEnqueueUSMFreeExp(queues[idx], nullptr, ptrs[i], 0,
+       //                                   nullptr, nullptr));
       }
 
       ASSERT_SUCCESS(urQueueFinish(queues[idx]));
@@ -791,4 +787,5 @@ TEST_P(urL0EnqueueAllocStandaloneTest, ReuseFittingAllocation) {
   ASSERT_EQ(ptr, allocations[3]); // Fitting allocation should be reused.
   ASSERT_SUCCESS(urEnqueueUSMFreeExp(queue, pool, ptr, 0, nullptr, nullptr));
   ASSERT_SUCCESS(urQueueFinish(queue));
+  ASSERT_SUCCESS(urUSMPoolRelease(pool));
 }

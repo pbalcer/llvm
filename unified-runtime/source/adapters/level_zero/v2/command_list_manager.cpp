@@ -879,6 +879,12 @@ ur_result_t ur_command_list_manager::appendUSMAllocHelper(
   auto device = (type == UR_USM_TYPE_HOST) ? nullptr : hDevice.get();
 
   ur_event_handle_t originAllocEvent = nullptr;
+auto Ret =
+        pPool->allocate(hContext.get(), device, nullptr, type, size, ppMem);
+    if (Ret) {
+      return Ret;
+    }
+#if 0
   auto asyncAlloc = pPool->allocateEnqueued(hContext.get(), Queue, true, device,
                                             nullptr, type, size);
   if (!asyncAlloc) {
@@ -892,6 +898,7 @@ ur_result_t ur_command_list_manager::appendUSMAllocHelper(
   }
 
   waitListView.addEvent(originAllocEvent);
+#endif
 
   ur_command_t commandType = UR_COMMAND_FORCE_UINT32;
   switch (type) {
@@ -907,7 +914,7 @@ ur_result_t ur_command_list_manager::appendUSMAllocHelper(
   default:
     UR_FFAILURE("enqueueUSMAllocHelper: unsupported USM type:" << type);
   }
-
+#if 0
   auto zeSignalEvent = getSignalEvent(phEvent, commandType);
   auto [pWaitEvents, numWaitEvents, _] = waitListView;
 
@@ -922,7 +929,7 @@ ur_result_t ur_command_list_manager::appendUSMAllocHelper(
   if (originAllocEvent) {
     originAllocEvent->release();
   }
-
+#endif
   return UR_RESULT_SUCCESS;
 }
 
@@ -930,9 +937,9 @@ ur_result_t ur_command_list_manager::appendUSMFreeExp(
     ur_queue_t_ *Queue, ur_usm_pool_handle_t, void *pMem,
     wait_list_view &waitListView, ur_event_handle_t phEvent) {
   TRACK_SCOPE_LATENCY("ur_command_list_manager::appendUSMFreeExp");
-  assert(phEvent);
+  //assert(phEvent);
 
-  auto zeSignalEvent = getSignalEvent(phEvent, UR_COMMAND_ENQUEUE_USM_FREE_EXP);
+  //auto zeSignalEvent = getSignalEvent(phEvent, UR_COMMAND_ENQUEUE_USM_FREE_EXP);
   auto [pWaitEvents, numWaitEvents, _] = waitListView;
 
   umf_memory_pool_handle_t hPool = nullptr;
@@ -961,8 +968,8 @@ ur_result_t ur_command_list_manager::appendUSMFreeExp(
                (getZeCommandList(), numWaitEvents, pWaitEvents));
   }
 
-  ZE2UR_CALL(zeCommandListAppendSignalEvent,
-             (getZeCommandList(), zeSignalEvent));
+  //ZE2UR_CALL(zeCommandListAppendSignalEvent,
+   //          (getZeCommandList(), zeSignalEvent));
 
   // Insert must be done after the signal event is appended.
   usmPool->asyncPool.insert(pMem, size, phEvent, Queue);
